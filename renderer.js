@@ -1,15 +1,17 @@
-const selectDirBtn = document.getElementById('select-dir-btn');
-const mediaGrid = document.getElementById('media-grid');
-const statusMessage = document.getElementById('status-message');
-const masterVolumeSlider = document.getElementById('master-volume');
-const toggleFavoritesViewBtn = document.getElementById('toggle-favorites-view');
-const toggleHistoryViewBtn = document.getElementById('toggle-history-view');
-const manageFoldersBtn = document.getElementById('manage-folders-btn');
-const manageFoldersModal = document.getElementById('manage-folders-modal');
-const modalCloseBtn = manageFoldersModal.querySelector('.modal-close-btn');
-const registeredFoldersList = document.getElementById('registered-folders-list');
-const modalStatusMessage = document.getElementById('modal-status-message');
-const backgroundColorPicker = document.getElementById('background-color-picker');
+// Declare DOM element variables
+let selectDirBtn;
+let mediaGrid;
+let statusMessage;
+let masterVolumeSlider;
+let toggleFavoritesViewBtn;
+let toggleHistoryViewBtn;
+let manageFoldersBtn;
+let manageFoldersModal;
+let modalCloseBtn; // Dependent on manageFoldersModal
+let registeredFoldersList;
+let modalStatusMessage;
+let backgroundColorPicker;
+let appTitleHeader; // Added for completeness, though its logic is already in DOMContentLoaded
 
 const DEFAULT_BACKGROUND_COLOR = '#f0f0f0'; // Match initial CSS body background
 const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
@@ -33,71 +35,7 @@ function initializeVolume() {
     if (masterVolumeSlider) masterVolumeSlider.value = currentVolume;
 }
 
-if (masterVolumeSlider) { // Guard event listener attachment
-    masterVolumeSlider.addEventListener('input', () => {
-        const newVolume = parseFloat(masterVolumeSlider.value);
-        localStorage.setItem('masterVolume', newVolume.toString());
-        console.log(`Master volume changed to: ${newVolume}`);
-        if (window.electronAPI) {
-            window.electronAPI.send('master-volume-changed', newVolume);
-        }
-    });
-} else {
-    console.warn("Master volume slider not found.");
-}
-
-// Guard other top-level listeners similarly for robustness, though already checked
-if (selectDirBtn) {
-    selectDirBtn.addEventListener('click', async () => {
-        // mediaGrid.innerHTML = ''; // Clearing grid here might be too early if user cancels.
-        // statusMessage.textContent = 'Scanning directory...'; // Also potentially premature.
-
-        // The following lines for clearing grid and setting status are moved to after path is confirmed.
-        // This was the previous logic:
-        // mediaGrid.innerHTML = '';
-        // statusMessage.textContent = 'Scanning directory...';
-        try {
-            const directoryPath = await window.electronAPI.invoke('dialog:openDirectory');
-            if (directoryPath) {
-                // User selected a directory
-                mediaGrid.innerHTML = ''; // Clear grid now that we are proceeding
-                statusMessage.textContent = `Adding '${directoryPath}' and refreshing media from all registered folders... Please wait. This might take a while.`;
-                console.log(`Selected directory: ${directoryPath}, sending to main process.`);
-                window.electronAPI.send('scan-directory', directoryPath);
-            } else {
-                // User cancelled the dialog or no path was returned
-                // Only update status if no media is currently shown, or revert to previous.
-                if (currentAllMediaItems.length === 0) { // Check if grid was already empty
-                    statusMessage.textContent = 'No directory selected or operation cancelled.';
-                } else {
-                     // Optional: Or let existing content and status message persist.
-                    console.log('Directory selection cancelled, existing media list retained.');
-                }
-            }
-        } catch (error) {
-            console.error('Error selecting directory:', error);
-            statusMessage.textContent = `Error selecting directory: ${error.message}`;
-        }
-    });
-} else {
-    console.warn("Select directory button not found.");
-}
-
-if (toggleFavoritesViewBtn) {
-    toggleFavoritesViewBtn.addEventListener('click', () => {
-        // ... (existing code) ...
-    });
-} else {
-    console.warn("Toggle favorites button not found.");
-}
-
-if (toggleHistoryViewBtn) {
-    toggleHistoryViewBtn.addEventListener('click', async () => {
-        // ... (existing code) ...
-    });
-} else {
-    console.warn("Toggle history button not found.");
-}
+// REMOVING TOP-LEVEL EVENT LISTENERS HERE - THEY WILL BE MOVED INTO DOMContentLoaded
 
 // Corrected: The erroneous populateMediaGrid definition (lines 45-55) is removed.
 // The correct definition below (previously starting at line 57) is now the active one.
@@ -277,27 +215,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found") {
     });
 }
 
-selectDirBtn.addEventListener('click', async () => {
-    mediaGrid.innerHTML = '';
-    statusMessage.textContent = 'Scanning directory...';
-    try {
-        const directoryPath = await window.electronAPI.invoke('dialog:openDirectory');
-        if (directoryPath) {
-            statusMessage.textContent = `Scanning ${directoryPath}... please wait. This might take a while for large directories.`;
-            console.log(`Selected directory: ${directoryPath}`);
-            window.electronAPI.send('scan-directory', directoryPath);
-        } else {
-            statusMessage.textContent = 'No directory selected. Previous media list (if any) retained.';
-            // If a previous list was loaded, it will remain. If not, grid is empty.
-            // To explicitly re-load or ensure message consistency:
-            // window.electronAPI.send('get-current-media-list');
-            // For now, do nothing, let existing grid (if any) persist or stay empty.
-        }
-    } catch (error) {
-        console.error('Error selecting directory:', error);
-        statusMessage.textContent = `Error: ${error.message}`;
-    }
-});
+// REMOVING THIS DUPLICATE/OLD selectDirBtn listener. The more complete one will be in DOMContentLoaded.
 
 // Function to decide what to render based on the current filter
 async function renderMediaGrid() { // Made async to handle potential await for history
@@ -326,27 +244,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
     populateMediaGrid(itemsToDisplay, messagePrefix);
 }
 
-// Event listener for the toggle favorites view button
-toggleFavoritesViewBtn.addEventListener('click', () => {
-    showingOnlyFavorites = !showingOnlyFavorites;
-    if (showingOnlyFavorites) {
-        showingOnlyHistory = false; // Deactivate history view if activating favorites view
-        toggleHistoryViewBtn.textContent = 'Show History';
-    }
-    toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
-    renderMediaGrid();
-});
-
-// Event listener for the toggle history view button
-toggleHistoryViewBtn.addEventListener('click', async () => {
-    showingOnlyHistory = !showingOnlyHistory;
-    if (showingOnlyHistory) {
-        showingOnlyFavorites = false; // Deactivate favorites view if activating history view
-        toggleFavoritesViewBtn.textContent = 'Show Favorites';
-    }
-    toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
-    await renderMediaGrid(); // Await because it might fetch history
-});
+// REMOVING TOP-LEVEL EVENT LISTENERS FOR toggleFavoritesViewBtn and toggleHistoryViewBtn - THEY WILL BE MOVED INTO DOMContentLoaded
 
 // Listener for newly scanned files
 window.electronAPI.on('media-files-loaded', (files) => {
@@ -364,11 +262,32 @@ window.electronAPI.on('current-media-list-loaded', (files) => {
 
 // On DOMContentLoaded, request the current media list
 document.addEventListener('DOMContentLoaded', () => {
+    // Assign DOM elements
+    selectDirBtn = document.getElementById('select-dir-btn');
+    mediaGrid = document.getElementById('media-grid');
+    statusMessage = document.getElementById('status-message');
+    masterVolumeSlider = document.getElementById('master-volume');
+    toggleFavoritesViewBtn = document.getElementById('toggle-favorites-view');
+    toggleHistoryViewBtn = document.getElementById('toggle-history-view');
+    manageFoldersBtn = document.getElementById('manage-folders-btn');
+    manageFoldersModal = document.getElementById('manage-folders-modal');
+    // modalCloseBtn depends on manageFoldersModal, so assign it after
+    if (manageFoldersModal) {
+        modalCloseBtn = manageFoldersModal.querySelector('.modal-close-btn');
+    }
+    registeredFoldersList = document.getElementById('registered-folders-list');
+    modalStatusMessage = document.getElementById('modal-status-message');
+    backgroundColorPicker = document.getElementById('background-color-picker');
+    appTitleHeader = document.getElementById('app-title-header');
+
+    // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
+
+    // Set initial text for toggle buttons (depends on toggleFavoritesViewBtn, toggleHistoryViewBtn)
     if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
     if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
 
-    // Initialize Background Color
+    // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
         const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
         const initialColor = savedColor || DEFAULT_BACKGROUND_COLOR;
@@ -387,11 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Background color picker not found.");
     }
 
-
-    // Get App Name from query params and set header
+    // Get App Name from query params and set header (depends on appTitleHeader)
     const params = new URLSearchParams(window.location.search);
     const appName = params.get('appName') || "My Media Browser"; // Fallback
-    const appTitleHeader = document.getElementById('app-title-header');
     if (appTitleHeader) {
         appTitleHeader.textContent = appName;
         appTitleHeader.addEventListener('click', () => {
@@ -399,34 +316,108 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal event listeners
-    if (manageFoldersBtn) { // Ensure button exists
+    // Event Listeners previously at top-level
+    if (masterVolumeSlider) {
+        masterVolumeSlider.addEventListener('input', () => {
+            const newVolume = parseFloat(masterVolumeSlider.value);
+            localStorage.setItem('masterVolume', newVolume.toString());
+            console.log(`Master volume changed to: ${newVolume}`);
+            if (window.electronAPI) {
+                window.electronAPI.send('master-volume-changed', newVolume);
+            }
+        });
+    } else {
+        console.warn("Master volume slider not found.");
+    }
+
+    if (selectDirBtn) {
+        selectDirBtn.addEventListener('click', async () => {
+            // Ensure mediaGrid and statusMessage are available
+            if (!mediaGrid || !statusMessage) {
+                console.error("Media grid or status message element not found for selectDirBtn listener.");
+                return;
+            }
+            mediaGrid.innerHTML = '';
+            statusMessage.textContent = 'Scanning directory...';
+            try {
+                const directoryPath = await window.electronAPI.invoke('dialog:openDirectory');
+                if (directoryPath) {
+                    statusMessage.textContent = `Scanning ${directoryPath}... please wait. This might take a while for large directories.`;
+                    console.log(`Selected directory: ${directoryPath}`);
+                    window.electronAPI.send('scan-directory', directoryPath);
+                } else {
+                    statusMessage.textContent = 'No directory selected. Previous media list (if any) retained.';
+                }
+            } catch (error) {
+                console.error('Error selecting directory:', error);
+                statusMessage.textContent = `Error: ${error.message}`;
+            }
+        });
+    } else {
+        console.warn("Select directory button not found.");
+    }
+
+    if (toggleFavoritesViewBtn) {
+        toggleFavoritesViewBtn.addEventListener('click', () => {
+            showingOnlyFavorites = !showingOnlyFavorites;
+            if (showingOnlyFavorites) {
+                showingOnlyHistory = false;
+                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
+            }
+            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
+            renderMediaGrid();
+        });
+    } else {
+        console.warn("Toggle favorites button not found.");
+    }
+
+    if (toggleHistoryViewBtn) {
+        toggleHistoryViewBtn.addEventListener('click', async () => {
+            showingOnlyHistory = !showingOnlyHistory;
+            if (showingOnlyHistory) {
+                showingOnlyFavorites = false;
+                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+            }
+            toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
+            await renderMediaGrid();
+        });
+    } else {
+        console.warn("Toggle history button not found.");
+    }
+
+    // Modal event listeners (already here, but ensure elements are assigned first)
+    if (manageFoldersBtn) {
         manageFoldersBtn.addEventListener('click', async () => {
             if (window.electronAPI) {
                 try {
-                    modalStatusMessage.textContent = ''; // Clear previous messages
+                    // Ensure modalStatusMessage and manageFoldersModal are available
+                    if (!modalStatusMessage || !manageFoldersModal) {
+                         console.error("Modal status message or manage folders modal not found for manageFoldersBtn listener.");
+                         return;
+                    }
+                    modalStatusMessage.textContent = '';
                     const folders = await window.electronAPI.invoke('get-scanned-folders');
-                    displayRegisteredFolders(folders);
+                    displayRegisteredFolders(folders); // Depends on registeredFoldersList
                     manageFoldersModal.style.display = 'block';
                 } catch (error) {
                     console.error('Error fetching scanned folders:', error);
-                    modalStatusMessage.textContent = 'Error loading folder list.';
-                    displayRegisteredFolders([]); // Display empty list on error
-                    manageFoldersModal.style.display = 'block';
+                    if (modalStatusMessage) modalStatusMessage.textContent = 'Error loading folder list.';
+                    displayRegisteredFolders([]);
+                    if (manageFoldersModal) manageFoldersModal.style.display = 'block';
                 }
             }
         });
     }
 
-    if (modalCloseBtn) { // Ensure button exists
+    if (modalCloseBtn) {
         modalCloseBtn.addEventListener('click', () => {
-            manageFoldersModal.style.display = 'none';
+            if (manageFoldersModal) manageFoldersModal.style.display = 'none';
         });
     }
 
-    window.addEventListener('click', (event) => { // Click outside modal to close
+    window.addEventListener('click', (event) => {
         if (event.target == manageFoldersModal) {
-            manageFoldersModal.style.display = 'none';
+            if (manageFoldersModal) manageFoldersModal.style.display = 'none';
         }
     });
 
