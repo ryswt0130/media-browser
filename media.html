@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>View Media</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file:; media-src 'self' file:; frame-src 'self' file:;">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="media-page-container">
+        <div id="media-viewer-main-content">
+            <div id="media-controls">
+                <div id="app-title-header" class="app-title"></div>
+                <button id="back-to-grid-btn">Back to Grid</button>
+                <button id="media-favorite-btn">☆</button>
+            </div>
+            <div id="player-with-title-area">
+                <div id="media-viewer-container">
+                    <!-- Media will be loaded here by mediaRenderer.js -->
+                    <p id="media-loading-message">Loading media...</p>
+                </div>
+                <h2 id="media-title-display" class="media-page-title"></h2>
+            </div>
+            <!-- <div class="flex-spacer" style="flex-grow: 1;"></div> DELETED -->
+        </div>
+        <div id="media-recommendations-sidebar">
+            <div id="recommendations-section">
+                <h2>Recommended</h2>
+                <div id="recommendations-grid">
+                    <!-- Recommended items will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="mediaRenderer.js"></script>
+</body>
+</html>

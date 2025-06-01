@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build_resources/
+*.log
+# Electron-builder specific
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.zip
+*.tar.gz
+*.nsis
+# macOS specific
+*.DS_Store

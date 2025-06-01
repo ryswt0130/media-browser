@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Media Browser</title>
+    <!--
+        Adjust Content-Security-Policy.
+        'self' for scripts and styles.
+        'unsafe-inline' for inline scripts (like document.write, though we'll move away from this).
+        img-src 'self' file: to allow loading images from local file system (thumbnails).
+        Note: file: protocol is powerful; in a production app, be more restrictive if possible.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file:;">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header id="main-header">
+        <div id="app-title-header" class="app-title">My Media Browser</div> <!-- Default text, JS will update -->
+        <button id="select-dir-btn">Select Media Directory</button>
+        <button id="manage-folders-btn">Manage Folders</button>
+        <div id="volume-control-container">
+            <label for="master-volume">Volume:</label>
+            <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <input type="color" id="background-color-picker" title="Change background color">
+    </header>
+
+    <div class="page-container">
+        <aside id="sidebar">
+            <button id="toggle-favorites-view">Show Favorites</button>
+            <button id="toggle-history-view">Show History</button>
+        </aside>
+        <main id="main-grid-area">
+            <div id="status-message">
+                <p>Select a directory to view media.</p>
+            </div>
+            <div id="media-grid">
+                <!-- Thumbnails will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Manage Folders Modal -->
+    <div id="manage-folders-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-btn">&times;</span>
+            <h2>Registered Media Folders</h2>
+            <ul id="registered-folders-list">
+                <!-- Folder items will be populated here -->
+            </ul>
+            <div id="modal-status-message" style="margin-top: 10px; color: #d9534f;"></div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

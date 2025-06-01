@@ -1,0 +1,708 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* Prevent horizontal scroll on body/html */
+}
+
+body {
+    font-family: sans-serif;
+    /* background-color: #f0f0f0; Applied by JS or default */
+    /* height: 100% is now in html, body above */
+}
+
+/* Header Styling (formerly #controls) */
+#main-header {
+    padding: 10px 15px; /* Consistent padding */
+    background-color: #2c3e50; /* New header background color */
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 2px solid #222f3e; /* Subtle border */
+    height: 60px; /* Fixed header height */
+    box-sizing: border-box;
+}
+
+#background-color-picker {
+    margin-left: 15px;
+    height: 30px;
+    width: 50px;
+    border: 1px solid #555; /* Subtle border */
+    padding: 2px; /* Small padding for the color swatch area */
+    background-color: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.app-title { /* Styles for app title in header */
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: auto; /* Pushes other control items to the right */
+    /* color: #61dafb; */ /* Optional: Accent color */
+}
+
+#volume-control-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#select-dir-btn, #toggle-favorites-view, #toggle-history-view {
+    padding: 10px 15px; /* Adjusted padding for more buttons */
+    font-size: 14px; /* Adjusted font size */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#select-dir-btn {
+    background-color: #5cb85c; /* Green for select dir */
+}
+
+#toggle-favorites-view {
+    background-color: #007bff; /* Blue for favorites toggle */
+}
+
+#toggle-history-view {
+    background-color: #6c757d; /* Gray for history toggle */
+}
+
+#select-dir-btn:hover, #toggle-favorites-view:hover, #toggle-history-view:hover {
+    opacity: 0.9;
+}
+
+#manage-folders-btn {
+    background-color: #f0ad4e; /* Orange for manage folders */
+}
+#manage-folders-btn:hover {
+    opacity: 0.9;
+}
+
+/* Page Container Layout (Sidebar + Main Content) */
+.page-container {
+    display: flex;
+    height: calc(100vh - 60px); /* Full viewport height minus header height */
+}
+
+#sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background-color: #252526; /* New distinct background color */
+    padding: 15px;
+    overflow-y: auto;
+    color: #ecf0f1;
+    box-sizing: border-box;
+}
+
+#sidebar button { /* Style for buttons within the sidebar */
+    display: block;
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 1em; /* Consistent font size */
+    border: none;
+    border-radius: 4px;
+    color: #ecf0f1;
+    background-color: #4a6fa5; /* Button background in sidebar */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#sidebar button:hover {
+    background-color: #3c5a88; /* Darker on hover */
+}
+
+/* Main Grid Area (Status Message + Media Grid) */
+#main-grid-area {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    /* background-color: #f4f6f8; */ /* REMOVED - Will be set by body or transparent */
+    background-color: transparent; /* Make main grid area transparent */
+    box-sizing: border-box;
+}
+
+#status-message {
+    /* color: #333; */ /* Text color might need to be dynamic or a high contrast default */
+    color: #f0f0f0; /* Default to light text, assuming dark backgrounds are common */
+    /* Or add a very subtle, semi-transparent background to status message itself */
+    /* background-color: rgba(0, 0, 0, 0.1); border-radius: 3px; padding: 5px; */
+}
+
+#media-grid {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px;
+    gap: 15px; /* Spacing between items */
+    justify-content: flex-start; /* Align items to the start (left) */
+}
+
+.media-item {
+    width: 200px; /* Same as thumbnail width */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    overflow: hidden; /* Ensure content fits */
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    position: relative; /* For positioning the thumbnail-message-overlay */
+}
+
+.media-item:hover {
+    transform: scale(1.05);
+}
+
+.media-item img {
+    width: 100%;
+    /* height: 150px; REMOVED fixed height */
+    aspect-ratio: 16 / 9; /* Apply 16:9 aspect ratio */
+    object-fit: cover; /* Cover the 16:9 area, cropping if necessary */
+    background-color: #000; /* Background for letter/pillarboxing or loading */
+    display: block;
+    /* border-radius: 3px 3px 0 0; Optional: if text is directly below and want rounded top corners */
+}
+
+.media-item img.thumbnail-loading {
+    background-color: #2c2c2c; /* Dark placeholder background */
+    /* A simple SVG spinner as a data URI could also be used as background-image */
+    /* For now, just a color to indicate loading and maintain space */
+}
+
+.media-item img.thumbnail-error {
+    background-color: #1e1e1e; /* Even darker for error */
+    /* A simple SVG error icon as a data URI could be used here */
+    /* For now, color indicates error, alt text should provide more info */
+}
+
+.media-item img.thumbnail-error { /* More specific error styling if needed */
+    background-color: #402020; /* Dark red-ish error background */
+}
+
+.thumbnail-message-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px; /* Smaller font for overlay */
+    text-align: center;
+    z-index: 1;
+    pointer-events: none; /* So it doesn't interfere with clicks on the item if any */
+    white-space: nowrap; /* Keep message on one line if possible, or adjust */
+}
+
+.media-item p {
+    margin: 5px; /* Keep existing margin or adjust */
+    font-size: 12px; /* Keep existing font-size or adjust */
+    text-align: center; /* Keep existing text-align or adjust */
+
+    /* Remove single-line specific styles */
+    /* white-space: nowrap; */ /* REMOVED */
+    /* text-overflow: ellipsis; */ /* text-overflow alone is for single line */
+
+    /* Multi-line ellipsis for 2 lines */
+    overflow: hidden; /* Required for ellipsis */
+    text-overflow: ellipsis; /* Fallback for browsers that don't support -webkit-line-clamp or for the last line */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Number of lines to show */
+    -webkit-box-orient: vertical;
+
+    line-height: 1.3em; /* Adjust based on font-size for appropriate spacing. (12px * 1.3 = 15.6px) */
+    max-height: 2.6em;  /* line-height * 2 lines (15.6px * 2 = 31.2px). This acts as a fallback. */
+
+    word-break: break-word; /* Allow long words to break and wrap to prevent overflow */
+    height: auto; /* Ensure no fixed height is set that would conflict */
+}
+
+#status-message {
+    text-align: center;
+    padding: 20px;
+    font-size: 18px;
+    color: #555;
+}
+
+/* Styles for media.html */
+#media-controls {
+    padding: 10px;
+    background-color: #333;
+    text-align: left;
+}
+
+#back-to-grid-btn {
+    padding: 8px 15px;
+    font-size: 14px;
+    background-color: #f0ad4e;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#back-to-grid-btn:hover {
+    background-color: #ec971f;
+}
+
+#media-viewer-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: calc(100vh - 60px); /* This height is for the old structure, now controlled by flex-grow */
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: transparent; /* Changed from #222 to transparent */
+}
+
+#media-viewer-container video,
+#media-viewer-container img,
+#media-viewer-container iframe {
+    max-width: 100%;
+    max-height: 100%;
+    border: none; /* For iframe */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+#media-viewer-container p { /* For error or loading messages */
+    color: white;
+    font-size: 18px;
+}
+
+/* Style for media title on media.html */
+.media-page-title {
+    color: #e0e0e0; /* Light gray, slightly less bright than pure white */
+    font-size: 1.3em;
+    font-weight: normal;
+    margin-top: 12px;
+    margin-bottom: 10px;
+    text-align: left; /* Changed from center to left */
+    padding-left: 10px; /* Add some padding to align with media player if it also has padding */
+    padding-right: 10px; /* Keep right padding consistent */
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* Media Page Container Layout */
+.media-page-container {
+    display: flex;
+    height: 100vh; /* Full viewport height */
+    width: 100vw; /* Full viewport width */
+    overflow: hidden; /* Prevent body scrollbars if content overflows */
+}
+
+#media-viewer-main-content {
+    flex: 3; /* Takes up 3 parts of the space, e.g., 75% */
+    display: flex;
+    flex-direction: column;
+    /* height: 100%; Removed, let flexbox manage height based on parent .media-page-container */
+    background-color: transparent;
+}
+
+#player-with-title-area {
+    flex-grow: 1; /* This area now takes up the available space */
+    flex-shrink: 1; /* Allow it to shrink */
+    min-height: 0; /* Crucial for allowing content to shrink properly */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; Removed, children are width 100% or use margin:auto */
+}
+
+#media-controls {
+    /* Existing styles: padding, background-color, text-align */
+    /* Ensure it's a flex container for aligning title and buttons */
+    display: flex;
+    align-items: center;
+    padding: 10px; /* Keep or adjust padding */
+    background-color: #333; /* Keep or adjust background */
+    /* gap: 15px; // If needed, but app-title uses margin-right: auto */
+    flex-shrink: 0;
+}
+
+#media-controls .app-title { /* Specific styling if different from main page's title */
+    margin-right: auto; /* Same push behavior */
+}
+
+
+#media-viewer-container {
+    /* flex-grow: 1; Removed, as it's now wrapped by player-with-title-area */
+    /* min-height: 0; Removed */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+    width: 100%; /* Take full width of player-with-title-area */
+    /* Height determined by its content (media element) */
+    flex-grow: 1; /* Takes available space within #player-with-title-area, before title */
+    flex-shrink: 1; /* Allow it to shrink */
+    min-height: 0; /* Allows it to shrink if content is smaller */
+}
+
+/* Styling for the actual media elements for aspect ratio and max height */
+#media-viewer-container > video,
+#media-viewer-container > img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%; /* Fill the container, constrained by object-fit and aspect-ratio */
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background-color: #000;
+    margin: 0 auto;
+}
+
+#media-viewer-container > iframe {
+    display: block;
+    width: 100%;
+    height: 100%; /* Iframe should take full height of its container */
+    border: none;
+    background-color: #fff; /* Default background for iframe content area */
+}
+
+
+.media-page-title {
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 5px;
+    margin-bottom: 10px; /* Added for spacing at the bottom of player-with-title-area */
+    /* Other text properties like color, font-size, text-align, padding remain */
+}
+
+
+#media-recommendations-sidebar {
+    flex: 1;
+    background-color: #252526; /* Fixed distinct color, same as index.html sidebar */
+    padding: 10px;
+    overflow-y: auto;
+    height: 100vh; /* Full height for the sidebar */
+    box-sizing: border-box;
+    color: #f0f0f0;
+}
+
+/* Styles for Maximized HTML View on Media Page */
+.media-page-container.html-view-maximized #media-viewer-main-content {
+    flex-grow: 6;
+    flex-shrink: 0;
+}
+
+.media-page-container.html-view-maximized #media-recommendations-sidebar {
+    flex-grow: 1;
+    flex-shrink: 1;
+    max-width: 200px;
+}
+
+/* Specific adjustments for HTML view to make player area grow */
+.media-page-container.html-view-maximized #player-with-title-area {
+    flex-grow: 1; /* Allow this wrapper to grow vertically */
+    min-height: 0; /* For proper flex behavior if content is too large */
+    width: 100%; /* Ensure it still takes full width */
+}
+
+.media-page-container.html-view-maximized #media-viewer-container {
+    flex-grow: 1; /* Allow iframe's parent to grow within player-with-title-area */
+    width: 100%;  /* Ensure it takes full width */
+    height: 100%; /* Crucial for iframe to expand */
+    /* padding: 0; Remove padding if iframe should be edge-to-edge in this mode */
+}
+
+/* Ensure iframe itself takes full height in this mode */
+.media-page-container.html-view-maximized #media-viewer-container > iframe {
+    height: 100%;
+    /* max-height: none; Override general max-height if it was too restrictive for HTML view */
+}
+
+
+/* Styles for Recommendations Section in media.html - now inside sidebar */
+#recommendations-section h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+#recommendations-grid {
+    display: flex;
+    flex-direction: column; /* Stack items vertically in sidebar */
+    gap: 10px;
+}
+
+.recommended-item {
+    width: 98%; /* Take full width of sidebar minus some padding */
+    /* height: auto; */ /* Let height be determined by content or a fixed aspect ratio */
+    border: 1px solid #444; /* Slightly adjusted border */
+    border-radius: 4px;
+    background-color: #2a2a2a; /* Slightly adjusted background */
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+    overflow: hidden;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out; /* Changed transition */
+    display: flex; /* Make recommended item a flex container for image + text */
+    flex-direction: row;
+    align-items: flex-start; /* Changed from center to flex-start for better text alignment */
+    padding: 5px;
+}
+
+.recommended-item:hover {
+    background-color: #383838;
+}
+
+.recommended-item img {
+    width: 120px; /* Adjusted width */
+    /* height: 75px; */ /* REMOVED fixed height */
+    aspect-ratio: 16 / 9; /* Added 16:9 aspect ratio */
+    object-fit: cover;    /* Ensured */
+    background-color: #000; /* Added fallback background */
+    display: block;       /* Ensured */
+    margin-right: 10px;   /* Adjusted margin */
+    border-radius: 3px;   /* Kept existing */
+    flex-shrink: 0; /* Prevent image from shrinking if text is too long */
+}
+
+.recommended-item p {
+    margin: 0; /* Remove default margin */
+    font-size: 12px; /* Slightly larger for readability */
+    color: #ccc;
+    white-space: normal; /* Allow text to wrap */
+    overflow: hidden; /* Still hide overflow */
+    text-overflow: ellipsis;
+    /* For multi-line ellipsis (complex, might need JS or more CSS) */
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Limit to 3 lines */
+    -webkit-box-orient: vertical;
+}
+
+/* Basic responsiveness: Stack columns on smaller screens */
+@media (max-width: 768px) {
+    .media-page-container {
+        flex-direction: column;
+        height: auto; /* Allow content to define height */
+        overflow-y: auto; /* Allow scrolling for the whole page */
+    }
+
+    #media-viewer-main-content {
+        flex: none; /* Reset flex property */
+        width: 100%;
+        height: 60vh; /* Give a significant portion to viewer */
+    }
+
+    #media-recommendations-sidebar {
+        flex: none; /* Reset flex property */
+        width: 100%;
+        height: auto; /* Let content define height */
+        max-height: 40vh; /* But limit its viewport share, still scrollable */
+        overflow-y: auto;
+    }
+
+    #recommendations-grid { /* Revert to wrap for smaller items if needed */
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+    }
+    .recommended-item { /* Adjust item size for wrapped layout */
+        width: 150px;
+        flex-direction: column; /* Stack image and text vertically again */
+        align-items: stretch;
+    }
+    .recommended-item img {
+        width: 100%;
+        height: 100px;
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+     .recommended-item p {
+        -webkit-line-clamp: 2; /* Fewer lines for smaller items */
+        text-align: center;
+    }
+}
+
+
+/* Responsive adjustments for new main page layout */
+@media (max-width: 768px) {
+    #main-header {
+        height: auto; /* Allow header to grow if items wrap */
+        flex-direction: column; /* Stack header items vertically */
+        align-items: flex-start; /* Align items to the start */
+        padding: 10px;
+    }
+    .app-title {
+        margin-bottom: 10px; /* Space below title when stacked */
+        margin-right: 0; /* Reset margin */
+    }
+    #main-header > button, #main-header > div#volume-control-container {
+        width: 100%; /* Make header buttons/controls full width */
+        margin-bottom: 5px; /* Space them out */
+    }
+    #main-header > div#volume-control-container label {
+        margin-right: 10px; /* Ensure label and slider have space */
+    }
+
+
+    .page-container {
+        flex-direction: column; /* Stack sidebar and main content */
+        height: auto; /* Let content define height */
+    }
+
+    #sidebar {
+        width: 100%; /* Sidebar takes full width */
+        height: auto; /* Adjust height to content */
+        overflow-y: visible; /* No independent scroll needed if stacked */
+        border-bottom: 2px solid #2c3e50; /* Separator when stacked */
+    }
+    #sidebar button {
+        text-align: center; /* Center text for full-width buttons */
+    }
+
+    #main-grid-area {
+        height: auto; /* Adjust height to content */
+        /* overflow-y: visible; */ /* Main page scroll will handle it if needed, or keep auto if it's very long */
+    }
+}
+
+
+/* Modal Styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+}
+
+.modal-content {
+    background-color: #282c34; /* Darker background for modal */
+    color: #abb2bf; /* Lighter text for contrast */
+    margin: 10% auto;
+    padding: 25px;
+    border: 1px solid #444851;
+    width: 60%;
+    max-width: 600px; /* Max width */
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.modal-close-btn {
+    color: #abb2bf;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.modal-close-btn:hover,
+.modal-close-btn:focus {
+    color: #ffffff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#registered-folders-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+}
+
+#registered-folders-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 5px;
+    border-bottom: 1px solid #3e444f;
+    /* word-break: break-all; -- Handled by span now */
+}
+
+#registered-folders-list li > span { /* For the folder path text */
+    flex-grow: 1; /* Allow path to take available space */
+    margin: 0 10px; /* Space around path */
+    word-break: break-all; /* Break long paths */
+    text-align: left; /* Ensure path is left-aligned */
+}
+
+.recursive-toggle { /* Container for checkbox and its label text */
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: #ccc; /* Lighter text for the label */
+    cursor: pointer;
+}
+
+.recursive-toggle input[type="checkbox"] {
+    cursor: pointer;
+}
+
+
+#registered-folders-list li:last-child {
+    border-bottom: none;
+}
+
+#registered-folders-list button.remove-folder-btn {
+    padding: 6px 12px;
+    background-color: #e06c75; /* Softer red */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px; /* Space between path and button */
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+#registered-folders-list button.remove-folder-btn:hover {
+    background-color: #be5046; /* Darker red on hover */
+}
+
+#modal-status-message {
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+/* Favorite button styles */
+.favorite-btn {
+    background: none;
+    border: none;
+    color: #ffd700; /* Gold color for stars */
+    font-size: 1.2em; /* Adjust size as needed */
+    cursor: pointer;
+    padding: 2px 5px; /* Minimal padding */
+    line-height: 1; /* Ensure it doesn't mess with item height too much */
+    vertical-align: middle;
+}
+
+.media-item .favorite-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 1.5em; /* Larger for media items */
+    text-shadow: 0 0 3px black; /* Make it stand out on images */
+}
+
+.media-item:hover .favorite-btn {
+    display: block; /* Show on hover, or always display if preferred */
+}
+
+/* Style for favorite button in media.html, near the back button or title */
+#media-favorite-btn {
+    font-size: 1.5em;
+    margin-left: 15px; /* Space from back button */
+    color: #ffd700;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
