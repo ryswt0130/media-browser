@@ -222,6 +222,11 @@ body {
 
     word-break: break-word; /* Allow long words to break and wrap to prevent overflow */
     height: auto; /* Ensure no fixed height is set that would conflict */
+
+    /* Added padding and box-sizing to prevent title cutoff */
+    padding-top: 2px;
+    padding-bottom: 2px;
+    box-sizing: border-box;
 }
 
 #status-message {
