@@ -25,6 +25,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveMemoBtn = document.getElementById('save-memo-btn');
     const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
     const memoStatusMessage = document.getElementById('memo-status-message');
+    const memoDisplayArea = document.getElementById('memo-display-area');
+    const editMemoBtn = document.getElementById('edit-memo-btn');
+    const cancelEditMemoBtn = document.getElementById('cancel-edit-memo-btn');
+
+    function showMemoDisplayMode(content) {
+        if (memoDisplayArea) {
+            memoDisplayArea.innerText = content; // For plain text display from .md
+            memoDisplayArea.style.display = 'block';
+        }
+        if (editMemoBtn) editMemoBtn.style.display = 'inline-block';
+
+        if (memoTextArea) memoTextArea.style.display = 'none';
+        if (saveMemoBtn) saveMemoBtn.style.display = 'none';
+        if (cancelEditMemoBtn) cancelEditMemoBtn.style.display = 'none';
+        if (insertTimestampBtn) insertTimestampBtn.style.display = 'none'; // Base state for display mode
+        console.log('[MEMO MODE] Switched to Display Mode');
+    }
+
+    function showMemoEditMode(currentContent) {
+        if (memoTextArea) {
+            memoTextArea.value = currentContent;
+            memoTextArea.style.display = 'block';
+            memoTextArea.focus(); // Focus on textarea when switching to edit mode
+        }
+        if (saveMemoBtn) saveMemoBtn.style.display = 'inline-block';
+        if (cancelEditMemoBtn) cancelEditMemoBtn.style.display = 'inline-block';
+        
+        if (currentFileType === 'video' && insertTimestampBtn) {
+            insertTimestampBtn.style.display = 'inline-block';
+        } else if (insertTimestampBtn) {
+            insertTimestampBtn.style.display = 'none';
+        }
+
+        if (memoDisplayArea) memoDisplayArea.style.display = 'none';
+        if (editMemoBtn) editMemoBtn.style.display = 'none';
+        console.log('[MEMO MODE] Switched to Edit Mode');
+    }
 
     // Apply initial background color
     const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -193,27 +230,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Load Memo
-        if (memoTextArea) { 
-            memoTextArea.value = ''; // Clear previous memo
+        if (memoTextArea && memoDisplayArea) { // Ensure both are available
+            memoTextArea.value = ''; // Clear edit area
+            memoDisplayArea.innerText = ''; // Clear display area
             window.electronAPI.invoke('get-memo', currentFilePath)
                 .then(memoContent => {
-                    memoTextArea.value = memoContent;
+                    showMemoDisplayMode(memoContent); // Show loaded content in display mode
                     console.log(`[MEMO] Memo loaded for: ${currentFilePath}`);
                 })
                 .catch(e => {
                     console.error(`[MEMO] Error loading memo for ${currentFilePath}:`, e);
-                    memoTextArea.value = "Error loading memo.";
+                    showMemoDisplayMode("Error loading memo."); // Show error in display mode
                 });
         }
-
-        // Timestamp button visibility
-        if (insertTimestampBtn) {
-            if (currentFileType === 'video') {
-                insertTimestampBtn.style.display = 'inline-block';
-            } else {
-                insertTimestampBtn.style.display = 'none';
-            }
-        }
+        // Timestamp button visibility is now handled by showMemoDisplayMode/showMemoEditMode
 
         // Set the new media title
         if (mediaTitleDisplay) {
@@ -374,10 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(() => {
                             if (memoStatusMessage) { 
                                 memoStatusMessage.classList.remove('show'); // Trigger fade-out
-                                // Text and color class will be cleared/reset by the next message display
                             }
                         }, 3000); 
                     }
+            showMemoDisplayMode(memoTextArea.value); // Switch to display mode with new content
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
                 }
@@ -395,6 +425,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 5000); 
                 }
             }
+        });
+    }
+
+    // Edit Memo Button Event Listener
+    if (editMemoBtn && memoDisplayArea && memoTextArea) {
+        editMemoBtn.addEventListener('click', () => {
+            showMemoEditMode(memoDisplayArea.innerText); // Pass current displayed content
+        });
+    }
+
+    // Cancel Edit Memo Button Event Listener
+    if (cancelEditMemoBtn && memoDisplayArea && memoTextArea) {
+        cancelEditMemoBtn.addEventListener('click', () => {
+            // Revert to displaying the content that was shown before editing started
+            showMemoDisplayMode(memoDisplayArea.innerText); 
         });
     }
 

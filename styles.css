@@ -432,6 +432,17 @@ body {
     padding-bottom: 4px;
 }
 
+#memo-display-area {
+    padding: 8px;
+    background-color: #2e2e2e; /* Slightly different from textarea bg for distinction */
+    border: 1px solid #444;
+    border-radius: 4px;
+    white-space: pre-wrap; /* Preserve newlines and spaces */
+    min-height: 80px; 
+    margin-bottom: 8px;
+    color: #ddd; 
+}
+
 #memo-textarea {
     width: 100%; 
     box-sizing: border-box; 
@@ -443,13 +454,25 @@ body {
     color: #ddd; 
     font-family: sans-serif; 
     min-height: 100px; 
+    display: none; /* Hidden by default, shown in edit mode */
     /* rows attribute from HTML provides initial height, CSS min-height ensures it's at least this tall */
 }
 
-#save-memo-btn,
-#insert-timestamp-btn {
+#edit-memo-btn {
     padding: 8px 12px;
     font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #17a2b8; /* Example: Info/Blue color for Edit */
+    color: white;
+    margin-bottom: 8px; 
+}
+
+#save-memo-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    display: none; /* Hidden by default */
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -458,14 +481,35 @@ body {
     margin-right: 5px; 
 }
 
-#insert-timestamp-btn {
+#insert-timestamp-btn { /* This rule might need to be combined or adjusted if #save-memo-btn selector is too general */
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
     background-color: #6c757d; 
-    display: none; /* Default to hidden, JS will toggle */
-    margin-left: 5px; /* Moved from inline */
+    color: white;
+    margin-right: 5px; /* Keep consistent margin with save button */
+    display: none; /* Default to hidden, JS will toggle (also set by JS based on video type) */
+    margin-left: 5px; 
 }
 
+#cancel-edit-memo-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #6c757d; /* Example: Gray for Cancel */
+    color: white;
+    margin-left: 5px;
+    display: none; /* Hidden by default */
+}
+
+#edit-memo-btn:hover,
 #save-memo-btn:hover,
-#insert-timestamp-btn:hover {
+#insert-timestamp-btn:hover,
+#cancel-edit-memo-btn:hover {
     opacity: 0.9;
 }
 
