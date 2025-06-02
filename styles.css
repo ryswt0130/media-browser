@@ -218,7 +218,7 @@ body {
     -webkit-box-orient: vertical;
 
     line-height: 1.3em; /* Adjust based on font-size for appropriate spacing. (12px * 1.3 = 15.6px) */
-    max-height: 2.6em;  /* line-height * 2 lines (15.6px * 2 = 31.2px). This acts as a fallback. */
+    max-height: 2.8em;  /* Adjusted: line-height * 2 lines + padding (approx) */
 
     word-break: break-word; /* Allow long words to break and wrap to prevent overflow */
     height: auto; /* Ensure no fixed height is set that would conflict */
