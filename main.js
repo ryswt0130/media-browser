@@ -20,6 +20,68 @@ if (process.env.NODE_ENV !== 'production') {
 }
 // -------------------------------------
 
+const thumbnailQueue = [];
+let activeThumbnailWorkers = 0;
+const MAX_CONCURRENT_THUMBNAIL_WORKERS = 2; // Or 3, or 4. Let's start with 2.
+
+async function processThumbnailQueue() {
+    if (activeThumbnailWorkers >= MAX_CONCURRENT_THUMBNAIL_WORKERS || thumbnailQueue.length === 0) {
+        return; // Max workers busy or queue is empty
+    }
+
+    const task = thumbnailQueue.shift(); // Get the next task
+    activeThumbnailWorkers++;
+
+    console.log(`Processing thumbnail for: ${task.filePath}. Queue size: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
+
+    try {
+        // generateThumbnail is already async and returns an object { generatedThumbnailPath, error, details }
+        const thumbResult = await generateThumbnail(task.filePath, task.fileType);
+
+        // Update allScannedMediaFiles regardless of request type
+        if (thumbResult.generatedThumbnailPath) {
+            const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === task.filePath);
+            if (fileIndex !== -1) {
+                allScannedMediaFiles[fileIndex].thumbnailPath = thumbResult.generatedThumbnailPath;
+                console.log(`Updated allScannedMediaFiles for ${task.filePath} with new thumbnail path.`);
+            }
+        }
+
+        if (task.isRendererRequest && task.windowId !== undefined) {
+            const targetWindow = BrowserWindow.fromId(task.windowId);
+            if (targetWindow && !targetWindow.isDestroyed()) {
+                targetWindow.webContents.send('thumbnail-generated', {
+                    originalImgId: task.imgIdForRenderer,
+                    filePath: task.filePath, // Send filePath back for context if needed
+                    ...thumbResult // spread the result: generatedThumbnailPath, error, details
+                });
+            } else {
+                console.warn(`Target window for thumbnail result no longer exists or is invalid. Window ID: ${task.windowId}, File: ${task.filePath}`);
+            }
+        }
+    } catch (error) {
+        console.error(`Error in generateThumbnail within processThumbnailQueue for ${task.filePath}:`, error);
+        // If generateThumbnail itself throws an unhandled error (it shouldn't with its current structure)
+        // We still need to ensure the renderer gets a response if it was a renderer request.
+        if (task.isRendererRequest && task.windowId !== undefined) {
+            const targetWindow = BrowserWindow.fromId(task.windowId);
+            if (targetWindow && !targetWindow.isDestroyed()) {
+                targetWindow.webContents.send('thumbnail-generated', {
+                    originalImgId: task.imgIdForRenderer,
+                    filePath: task.filePath,
+                    generatedThumbnailPath: null,
+                    error: 'queue_processing_error',
+                    details: error.message
+                });
+            }
+        }
+    } finally {
+        activeThumbnailWorkers--;
+        // Process next item if any
+        processThumbnailQueue();
+    }
+}
+
 const APP_NAME = appPackage.productName || "My Media Browser";
 const HISTORY_LIMIT = 100; // Max number of history items to store
 let allScannedMediaFiles = []; // To store all scanned media files with their details
@@ -311,6 +373,30 @@ async function loadAllMediaFromRegisteredFolders() {
 
     allScannedMediaFiles = processedFiles;
     console.log(`Updated allScannedMediaFiles with ${allScannedMediaFiles.length} items. On-demand thumbnail generation will be used if path is null.`);
+
+    // After allScannedMediaFiles is fully populated and processed...
+    console.log('Proactively queuing missing thumbnails for background generation...');
+    let proactiveQueueCount = 0;
+    allScannedMediaFiles.forEach(file => {
+        if (!file.thumbnailPath) { // If thumbnailPath is null or empty
+            // Avoid adding if already queued by renderer recently for the same file
+            const alreadyQueuedByRenderer = thumbnailQueue.some(task => task.filePath === file.filePath && task.isRendererRequest);
+
+            if (!alreadyQueuedByRenderer) {
+                thumbnailQueue.push({
+                    filePath: file.filePath,
+                    fileType: file.fileType,
+                    isRendererRequest: false, // This is a background task
+                    // No imgIdForRenderer or windowId needed for background tasks
+                });
+                proactiveQueueCount++;
+            }
+        }
+    });
+    if (proactiveQueueCount > 0) {
+        console.log(`Added ${proactiveQueueCount} items to thumbnail queue for background generation.`);
+        processThumbnailQueue(); // Trigger queue processing if not already active
+    }
     return allScannedMediaFiles; // Return the list with thumbnailPath set to existing or null
 }
 
@@ -516,44 +602,27 @@ ipcMain.handle('toggle-recursive-scan', async (event, { folderPath, recursive })
     }
 });
 
-// IPC handler for on-demand thumbnail generation
-ipcMain.handle('get-thumbnail-for-file', async (event, { filePath, fileType, imgIdForRenderer }) => {
-    if (!filePath || !fileType || !imgIdForRenderer) {
-        console.error('Invalid parameters for get-thumbnail-for-file:', { filePath, fileType, imgIdForRenderer });
-        return { originalImgId: imgIdForRenderer, generatedThumbnailPath: null, error: 'Invalid parameters' };
+// New IPC handler for queuing thumbnail requests
+ipcMain.on('request-thumbnail', (event, { filePath, fileType, imgIdForRenderer }) => {
+    // Ensure we have a valid windowId to send the response back to.
+    // event.sender is the webContents that sent the message.
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!ownerWindow) {
+        console.warn(`Could not find owner window for request-thumbnail from sender ID: ${event.sender.id}. File: ${filePath}`);
+        return; // Cannot process if we can't identify the window to reply to
     }
-    try {
-        console.log(`On-demand thumbnail request for: ${filePath} (imgId: ${imgIdForRenderer})`);
-        // generateThumbnail will check if thumbnail already exists.
-        // generateThumbnail now returns an object: { generatedThumbnailPath, error, details }
-        const thumbResult = await generateThumbnail(filePath, fileType);
+    const windowId = ownerWindow.id;
 
-        if (thumbResult.generatedThumbnailPath) {
-            // Update allScannedMediaFiles with the new thumbnail path if generation was successful
-            const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === filePath);
-            if (fileIndex !== -1) {
-                allScannedMediaFiles[fileIndex].thumbnailPath = thumbResult.generatedThumbnailPath;
-            }
-            return {
-                originalImgId: imgIdForRenderer,
-                generatedThumbnailPath: thumbResult.generatedThumbnailPath,
-                error: null,
-                errorDetails: null
-            };
-        } else {
-            // An error occurred during thumbnail generation
-            console.error(`Thumbnail generation failed for ${filePath}: ${thumbResult.error}`, thumbResult.details);
-            return {
-                originalImgId: imgIdForRenderer,
-                generatedThumbnailPath: null,
-                error: thumbResult.error, // e.g., 'video_corrupt_or_unreadable'
-                errorDetails: thumbResult.details
-            };
-        }
-    } catch (error) { // Catch errors if generateThumbnail itself throws (shouldn't with new design) or other issues
-        console.error(`Unexpected error in get-thumbnail-for-file for ${filePath}: ${error.message}`);
-        return { originalImgId: imgIdForRenderer, generatedThumbnailPath: null, error: 'ipc_handler_error', errorDetails: error.message };
-    }
+    // Add to queue with renderer request context
+    thumbnailQueue.push({
+        filePath,
+        fileType,
+        imgIdForRenderer,
+        windowId, // ID of the window that made the request
+        isRendererRequest: true
+    });
+    console.log(`Queued renderer thumbnail request for: ${filePath}. Queue size: ${thumbnailQueue.length}`);
+    processThumbnailQueue(); // Trigger queue processing
 });
 
 ipcMain.on('background-color-changed', (event, newColor) => {

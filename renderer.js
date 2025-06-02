@@ -129,45 +129,30 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found") {
                 try {
                     if (!window.electronAPI) {
                         console.error("electronAPI not found for on-demand thumbnail for file:", file.filePath);
-                        throw new Error("electronAPI not available");
+                        // Still throw error or handle, as this is a prerequisite fail
+                        img.alt = "API Error"; // Update alt on current img
+                        img.classList.remove('thumbnail-loading');
+                        img.classList.add('thumbnail-error');
+                        return; // Exit the IIFE
                     }
-                    const response = await window.electronAPI.invoke('get-thumbnail-for-file', {
+                    // Send request to main process for thumbnail generation
+                    window.electronAPI.send('request-thumbnail', {
                         filePath: file.filePath,
                         fileType: file.fileType,
                         imgIdForRenderer: uniqueImgId
                     });
-
-                    const imgToUpdate = document.getElementById(response.originalImgId);
-                    if (imgToUpdate) {
-                        imgToUpdate.classList.remove('thumbnail-loading');
-                        // Remove any existing message overlay before adding a new one or setting src
-                        const existingMsg = imgToUpdate.parentElement?.querySelector('.thumbnail-message-overlay');
-                        if (existingMsg) existingMsg.remove();
-
-                        if (response.error === 'video_corrupt_or_unreadable') {
-                            imgToUpdate.classList.add('thumbnail-error');
-                            imgToUpdate.alt = 'Video corrupt or unreadable';
-                            if (imgToUpdate.parentElement) {
-                                const errorMsgElement = document.createElement('div');
-                                errorMsgElement.className = 'thumbnail-message-overlay';
-                                errorMsgElement.textContent = 'Video Corrupt';
-                                imgToUpdate.parentElement.appendChild(errorMsgElement);
-                            }
-                        } else if (response.error || !response.generatedThumbnailPath) {
-                            imgToUpdate.classList.add('thumbnail-error');
-                            imgToUpdate.alt = response.error ? `Error: ${response.error}` : `Thumbnail error: ${response.errorDetails || 'Generation failed'}`;
-                            console.error(`Thumbnail generation failed for ${file.filePath}:`, response.error, response.errorDetails);
-                        } else { // Success
-                            imgToUpdate.src = `file://${response.generatedThumbnailPath}`;
-                            imgToUpdate.alt = displayFileName;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error in on-demand thumbnail IIFE for', file.filePath, error);
+                    // The response will be handled by a separate 'thumbnail-generated' IPC listener.
+                    // The existing try-catch in this IIFE was for the invoke promise.
+                    // Errors from generation will be part of the 'thumbnail-generated' payload.
+                    // We can keep the try-catch if other synchronous errors within the IIFE are possible,
+                    // but it won't catch issues from the asynchronous 'send' operation or subsequent generation.
+                    // For now, the direct response handling is removed.
+                } catch (error) { // This catch is now mainly for errors setting up the send or if electronAPI was initially missing.
+                    console.error('Error in on-demand thumbnail IIFE (before send or setup) for', file.filePath, error);
                     const imgToUpdateOnError = document.getElementById(uniqueImgId);
                     if (imgToUpdateOnError) {
                         const parent = imgToUpdateOnError.parentElement;
-                        if (parent) { // Remove previous overlay if any
+                        if (parent) {
                            const existingMsg = parent.querySelector('.thumbnail-message-overlay');
                            if (existingMsg) existingMsg.remove();
                         }
@@ -273,6 +258,53 @@ window.electronAPI.on('current-media-list-loaded', (files) => {
     console.log('Received current media list from main process:', files);
     currentAllMediaItems = files; // Store the full list
     renderMediaGrid(); // Render based on current filter
+});
+
+// Listener for generated thumbnails (from on-demand requests)
+window.electronAPI.on('thumbnail-generated', (result) => {
+    // result will be an object like:
+    // { originalImgId: task.imgIdForRenderer, filePath: task.filePath, generatedThumbnailPath, error, details }
+    if (!result || !result.originalImgId) {
+        console.error('Received invalid thumbnail-generated event:', result);
+        return;
+    }
+
+    const imgToUpdate = document.getElementById(result.originalImgId);
+    if (imgToUpdate) {
+        imgToUpdate.classList.remove('thumbnail-loading');
+        // Remove any existing message overlay before adding a new one or setting src
+        const existingMsg = imgToUpdate.parentElement?.querySelector('.thumbnail-message-overlay');
+        if (existingMsg) existingMsg.remove();
+
+        if (result.error === 'video_corrupt_or_unreadable') {
+            imgToUpdate.classList.add('thumbnail-error');
+            imgToUpdate.alt = 'Video corrupt or unreadable';
+            if (imgToUpdate.parentElement) {
+                const errorMsgElement = document.createElement('div');
+                errorMsgElement.className = 'thumbnail-message-overlay';
+                errorMsgElement.textContent = 'Video Corrupt';
+                imgToUpdate.parentElement.appendChild(errorMsgElement);
+            }
+        } else if (result.error || !result.generatedThumbnailPath) {
+            imgToUpdate.classList.add('thumbnail-error');
+            const displayFileName = result.filePath ? result.filePath.split(/\/|\\/).pop() : 'File';
+            imgToUpdate.alt = result.error ? `${displayFileName} - Error: ${result.error}` : `${displayFileName} - Thumbnail error: ${result.details || 'Generation failed'}`;
+            console.error(`Thumbnail generation failed for ${result.filePath}:`, result.error, result.details);
+            // Optionally add a generic error message overlay
+            if (imgToUpdate.parentElement) {
+                const errorMsgElement = document.createElement('div');
+                errorMsgElement.className = 'thumbnail-message-overlay';
+                errorMsgElement.textContent = 'Thumb Error'; // Generic error, alt text has details
+                imgToUpdate.parentElement.appendChild(errorMsgElement);
+            }
+        } else { // Success
+            const displayFileName = result.filePath ? result.filePath.split(/\/|\\/).pop() : 'Unnamed File';
+            imgToUpdate.src = `file://${result.generatedThumbnailPath}`;
+            imgToUpdate.alt = displayFileName;
+        }
+    } else {
+        // console.warn(`Image element not found for ID: ${result.originalImgId} (possibly scrolled out of view or removed)`);
+    }
 });
 
 // On DOMContentLoaded, request the current media list
