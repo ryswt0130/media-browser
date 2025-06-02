@@ -25,18 +25,24 @@ let activeThumbnailWorkers = 0;
 const MAX_CONCURRENT_THUMBNAIL_WORKERS = 2; // Or 3, or 4. Let's start with 2.
 
 async function processThumbnailQueue() {
+    console.log('[QUEUE] processThumbnailQueue called.');
     if (activeThumbnailWorkers >= MAX_CONCURRENT_THUMBNAIL_WORKERS || thumbnailQueue.length === 0) {
         return; // Max workers busy or queue is empty
     }
-
+    console.log(`[QUEUE] State before dequeue: Queue length: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
     const task = thumbnailQueue.shift(); // Get the next task
+    console.log(`[QUEUE] Dequeued task for: ${task.filePath}, Type: ${task.fileType}, RendererRequest: ${task.isRendererRequest}`);
     activeThumbnailWorkers++;
 
-    console.log(`Processing thumbnail for: ${task.filePath}. Queue size: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
+    // This console.log was part of the original prompt, but it's very similar to the one above.
+    // For clarity, I'll use the more detailed one above.
+    // console.log(`Processing thumbnail for: ${task.filePath}. Queue size: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
 
     try {
+        console.log(`[QUEUE] Calling generateThumbnail for: ${task.filePath}`);
         // generateThumbnail is already async and returns an object { generatedThumbnailPath, error, details }
         const thumbResult = await generateThumbnail(task.filePath, task.fileType);
+        console.log(`[QUEUE] generateThumbnail returned for: ${task.filePath}. Result error: ${thumbResult.error}, Path: ${thumbResult.generatedThumbnailPath}`);
 
         // Update allScannedMediaFiles regardless of request type
         if (thumbResult.generatedThumbnailPath) {
@@ -50,6 +56,7 @@ async function processThumbnailQueue() {
         if (task.isRendererRequest && task.windowId !== undefined) {
             const targetWindow = BrowserWindow.fromId(task.windowId);
             if (targetWindow && !targetWindow.isDestroyed()) {
+                console.log(`[QUEUE] Sending 'thumbnail-generated' IPC for: ${task.filePath}, ImgID: ${task.imgIdForRenderer}`);
                 targetWindow.webContents.send('thumbnail-generated', {
                     originalImgId: task.imgIdForRenderer,
                     filePath: task.filePath, // Send filePath back for context if needed
@@ -60,7 +67,7 @@ async function processThumbnailQueue() {
             }
         }
     } catch (error) {
-        console.error(`Error in generateThumbnail within processThumbnailQueue for ${task.filePath}:`, error);
+        console.error(`[QUEUE] CATCH BLOCK error during generateThumbnail for ${task.filePath}: `, error);
         // If generateThumbnail itself throws an unhandled error (it shouldn't with its current structure)
         // We still need to ensure the renderer gets a response if it was a renderer request.
         if (task.isRendererRequest && task.windowId !== undefined) {
@@ -76,7 +83,9 @@ async function processThumbnailQueue() {
             }
         }
     } finally {
+        console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers before dec: ${activeThumbnailWorkers}`);
         activeThumbnailWorkers--;
+        console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers after dec: ${activeThumbnailWorkers}. Calling processThumbnailQueue recursively.`);
         // Process next item if any
         processThumbnailQueue();
     }
@@ -390,12 +399,14 @@ async function loadAllMediaFromRegisteredFolders() {
                     // No imgIdForRenderer or windowId needed for background tasks
                 });
                 proactiveQueueCount++;
+                console.log(`[PROACTIVE QUEUE] Background task added for ${file.filePath}. New queue size: ${thumbnailQueue.length}`);
             }
         }
     });
     if (proactiveQueueCount > 0) {
         console.log(`Added ${proactiveQueueCount} items to thumbnail queue for background generation.`);
         processThumbnailQueue(); // Trigger queue processing if not already active
+        console.log(`[PROACTIVE QUEUE] Called processThumbnailQueue after adding ${proactiveQueueCount} proactive items.`);
     }
     return allScannedMediaFiles; // Return the list with thumbnailPath set to existing or null
 }
@@ -621,8 +632,9 @@ ipcMain.on('request-thumbnail', (event, { filePath, fileType, imgIdForRenderer }
         windowId, // ID of the window that made the request
         isRendererRequest: true
     });
-    console.log(`Queued renderer thumbnail request for: ${filePath}. Queue size: ${thumbnailQueue.length}`);
+    console.log(`[IPC ON request-thumbnail] Task added for ${filePath}. New queue size: ${thumbnailQueue.length}`);
     processThumbnailQueue(); // Trigger queue processing
+    console.log(`[IPC ON request-thumbnail] Called processThumbnailQueue for ${filePath}.`);
 });
 
 ipcMain.on('background-color-changed', (event, newColor) => {
