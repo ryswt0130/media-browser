@@ -418,9 +418,10 @@ ipcMain.on('scan-directory', async (event, directoryPath) => {
     const currentFolders = getScannedFolders(); // Array of { path: string, recursive: boolean }
     // Check if path already exists
     if (!currentFolders.some(folder => folder.path === directoryPath)) {
-        currentFolders.push({ path: directoryPath, recursive: true }); // Default new folders to recursive
+        currentFolders.push({ path: directoryPath, recursive: false }); // Default new folders to non-recursive
         saveScannedFolders(currentFolders);
-        console.log(`Added new scan directory: ${directoryPath} (recursive by default).`);
+        console.log(`Added new scan directory: ${directoryPath} (recursive by default).`); // Log message might need update too
+        console.log(`Added new scan directory: ${directoryPath} (defaulting to non-recursive).`);
     } else {
         console.log(`Directory already in scan list: ${directoryPath}`);
     }
