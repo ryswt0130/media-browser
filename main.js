@@ -6,6 +6,19 @@ const appPackage = require('./package.json');
 const { scanDirectory } = require('./fileScanner');
 const { generateThumbnail, THUMBNAILS_DIR, generateExpectedThumbnailFilename } = require('./thumbnailGenerator'); // Import new items
 
+// --- 開発時のみリロードを有効化 ---
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
+      hardResetMethod: 'exit' // Recommended for main process changes
+    });
+  } catch (e) {
+    console.error('electron-reload could not be loaded. If you are not in a dev environment, this is normal. Error:', e);
+  }
+}
+// -------------------------------------
+
 const APP_NAME = appPackage.productName || "My Media Browser";
 const HISTORY_LIMIT = 100; // Max number of history items to store
 let allScannedMediaFiles = []; // To store all scanned media files with their details
