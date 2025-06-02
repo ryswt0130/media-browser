@@ -329,8 +329,8 @@ body {
     /* flex-grow: 1; Removed, as it's now wrapped by player-with-title-area */
     /* min-height: 0; Removed */
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column; /* Ensures video/image and title stack vertically */
+    align-items: center;   /* Centers the video/image and title block horizontally */
     padding: 10px;
     box-sizing: border-box;
     overflow: hidden;

@@ -48,8 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearMediaViewer() {
-        mediaViewerContainer.innerHTML = ''; // Clear previous media
-        currentVideoElement = null; // Clear reference
+        // Selectively remove only media elements (video, img, iframe)
+        const mediaElements = mediaViewerContainer.querySelectorAll('video, img, iframe');
+        mediaElements.forEach(el => el.remove());
+        currentVideoElement = null; // Clear reference to video element
     }
 
     function clearRecommendations() {
@@ -107,7 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!filePath || !fileType) {
             const errorMessage = document.createElement('p');
             errorMessage.textContent = 'Media file path or type not provided.';
-            mediaViewerContainer.appendChild(errorMessage);
+            // Insert error message before the title display
+            if (mediaTitleDisplay) {
+                mediaViewerContainer.insertBefore(errorMessage, mediaTitleDisplay);
+            } else {
+                mediaViewerContainer.appendChild(errorMessage); // Fallback if title not found
+            }
             console.error('Media file path or type not provided for loadMedia.');
             return;
         }
@@ -120,7 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
             video.src = safeFilePath;
             video.controls = true;
             video.autoplay = true;
-            mediaViewerContainer.appendChild(video);
+            // Insert video before the title display
+            if (mediaTitleDisplay) {
+                mediaViewerContainer.insertBefore(video, mediaTitleDisplay);
+            } else {
+                mediaViewerContainer.appendChild(video); // Fallback if title not found
+            }
             currentVideoElement = video; // Store reference
 
             // Apply stored/default master volume
@@ -135,15 +147,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const img = document.createElement('img');
             img.src = safeFilePath;
             img.alt = `Image: ${filePath}`;
-            mediaViewerContainer.appendChild(img);
+            // Insert image before the title display
+            if (mediaTitleDisplay) {
+                mediaViewerContainer.insertBefore(img, mediaTitleDisplay);
+            } else {
+                mediaViewerContainer.appendChild(img); // Fallback if title not found
+            }
         } else if (fileType === 'html') {
             const iframe = document.createElement('iframe');
             iframe.src = safeFilePath;
-            mediaViewerContainer.appendChild(iframe);
+            // Insert iframe before the title display
+            if (mediaTitleDisplay) {
+                mediaViewerContainer.insertBefore(iframe, mediaTitleDisplay);
+            } else {
+                mediaViewerContainer.appendChild(iframe); // Fallback if title not found
+            }
         } else {
             const errorMessage = document.createElement('p');
             errorMessage.textContent = `Unsupported file type: ${fileType}`;
-            mediaViewerContainer.appendChild(errorMessage);
+            // Insert error message before the title display
+            if (mediaTitleDisplay) {
+                mediaViewerContainer.insertBefore(errorMessage, mediaTitleDisplay);
+            } else {
+                mediaViewerContainer.appendChild(errorMessage); // Fallback if title not found
+            }
         }
 
         // After loading media, get recommendations and add to history
