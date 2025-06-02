@@ -182,7 +182,7 @@ async function generateThumbnail(filePath, fileType) {
                     const svgContent = `
                       <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
                         <rect width="100%" height="100%" fill="${HTML_THUMB_BACKGROUND_COLOR}" />
-                        <text x="${HTML_THUMB_PADDING_X}" y="${HTML_THUMB_PADDING_Y + HTML_THUMB_FONT_SIZE * 0.8}"
+                        <text x="${HTML_THUMB_PADDING_X}" y="${HTML_THUMB_PADDING_Y + HTML_THUMB_FONT_SIZE * 0.8 + HTML_THUMB_ACTUAL_LINE_HEIGHT}"
                               font-family="${HTML_THUMB_FONT_FAMILY}" font-size="${HTML_THUMB_FONT_SIZE}" fill="${HTML_THUMB_TEXT_COLOR}">
                           ${tspanElements}
                         </text>
