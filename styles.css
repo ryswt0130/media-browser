@@ -396,6 +396,59 @@ body {
     color: #f0f0f0;
 }
 
+/* Styles for Memo Section in media.html sidebar */
+#memo-section {
+    margin-bottom: 20px; /* Moved from inline */
+    padding: 5px;
+}
+
+#memo-section h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    color: #e0e0e0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 4px;
+}
+
+#memo-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #ddd;
+    font-family: sans-serif;
+    min-height: 100px;
+    /* rows attribute from HTML provides initial height, CSS min-height ensures it's at least this tall */
+}
+
+#save-memo-btn,
+#insert-timestamp-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    margin-right: 5px;
+}
+
+#insert-timestamp-btn {
+    background-color: #6c757d;
+    display: none; /* Default to hidden, JS will toggle */
+    margin-left: 5px; /* Moved from inline */
+}
+
+#save-memo-btn:hover,
+#insert-timestamp-btn:hover {
+    opacity: 0.9;
+}
+
+
 /* Styles for Maximized HTML View on Media Page */
 .media-page-container.html-view-maximized #media-viewer-main-content {
     flex-grow: 3;

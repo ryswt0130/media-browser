@@ -20,6 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentVideoElement = null;
     let currentFilePathOnPage = null;
     const mediaTitleDisplay = document.getElementById('media-title-display');
+    const memoSection = document.getElementById('memo-section');
+    const memoTextArea = document.getElementById('memo-textarea');
+    const saveMemoBtn = document.getElementById('save-memo-btn');
+    const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
 
     // Apply initial background color
     const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -48,10 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearMediaViewer() {
-        // Selectively remove only media elements (video, img, iframe)
-        const mediaElements = mediaViewerContainer.querySelectorAll('video, img, iframe');
+        const mediaElements = mediaViewerContainer.querySelectorAll('video, img, iframe, p#media-error-message'); // Include error message if it has an ID
         mediaElements.forEach(el => el.remove());
-        currentVideoElement = null; // Clear reference to video element
+        currentVideoElement = null;
     }
 
     function clearRecommendations() {
@@ -116,8 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 mediaViewerContainer.appendChild(errorMessage); // Fallback if title not found
             }
             console.error('Media file path or type not provided for loadMedia.');
+            // Hide memo section if no media is loaded
+            if (memoSection) memoSection.style.display = 'none';
+            if (insertTimestampBtn) insertTimestampBtn.style.display = 'none';
             return;
         }
+        // Show memo section when media is loaded
+        if (memoSection) memoSection.style.display = 'block';
+
 
         console.log(`Displaying media: ${fileType} - ${filePath}`);
         const safeFilePath = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
@@ -180,6 +189,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log(`Adding to history: ${filePath} (${fileType})`);
             window.electronAPI.send('add-to-history', { filePath, fileType });
+        }
+
+        // Load Memo
+        if (memoTextArea) {
+            memoTextArea.value = ''; // Clear previous memo
+            window.electronAPI.invoke('get-memo', currentFilePath)
+                .then(memoContent => {
+                    memoTextArea.value = memoContent;
+                    console.log(`[MEMO] Memo loaded for: ${currentFilePath}`);
+                })
+                .catch(e => {
+                    console.error(`[MEMO] Error loading memo for ${currentFilePath}:`, e);
+                    memoTextArea.value = "Error loading memo.";
+                });
+        }
+
+        // Timestamp button visibility
+        if (insertTimestampBtn) {
+            if (currentFileType === 'video') {
+                insertTimestampBtn.style.display = 'inline-block';
+            } else {
+                insertTimestampBtn.style.display = 'none';
+            }
         }
 
         // Set the new media title
@@ -317,4 +349,53 @@ document.addEventListener('DOMContentLoaded', () => {
     backToGridBtn.addEventListener('click', () => {
         window.location.href = 'index.html';
     });
+
+    // Memo Save Button Event Listener
+    if (saveMemoBtn && memoTextArea) {
+        saveMemoBtn.addEventListener('click', async () => {
+            if (!currentFilePath) {
+                alert('No media file loaded to associate memo with.');
+                return;
+            }
+            try {
+                console.log(`[MEMO] Saving memo for: ${currentFilePath}`);
+                const result = await window.electronAPI.invoke('save-memo', {
+                    mediaFilePath: currentFilePath,
+                    content: memoTextArea.value
+                });
+                if (result.success) {
+                    alert('Memo saved!'); // Replace with a less obtrusive status message
+                    console.log(`[MEMO] Memo saved for: ${currentFilePath}`);
+                } else {
+                    throw new Error(result.error || 'Unknown error saving memo.');
+                }
+            } catch (e) {
+                console.error(`[MEMO] Error saving memo: `, e);
+                alert(`Error saving memo: ${e.message}`);
+            }
+        });
+    }
+
+    // Insert Timestamp Button Event Listener
+    if (insertTimestampBtn && memoTextArea) {
+        insertTimestampBtn.addEventListener('click', () => {
+            if (currentVideoElement && currentFileType === 'video') {
+                const time = currentVideoElement.currentTime;
+                const hours = Math.floor(time / 3600);
+                const minutes = Math.floor((time % 3600) / 60);
+                const seconds = Math.floor(time % 60);
+                const timestamp = `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}] - `;
+
+                const start = memoTextArea.selectionStart;
+                const end = memoTextArea.selectionEnd;
+                const text = memoTextArea.value;
+                memoTextArea.value = text.substring(0, start) + timestamp + text.substring(end);
+                memoTextArea.focus();
+                memoTextArea.selectionStart = memoTextArea.selectionEnd = start + timestamp.length;
+                console.log(`[MEMO] Timestamp inserted: ${timestamp.trim()}`);
+            } else {
+                console.warn('[MEMO] Insert timestamp clicked but no video element or not a video.');
+            }
+        });
+    }
 });

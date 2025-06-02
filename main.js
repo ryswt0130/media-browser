@@ -23,6 +23,7 @@ if (process.env.NODE_ENV !== 'production') {
 const thumbnailQueue = [];
 let activeThumbnailWorkers = 0;
 const MAX_CONCURRENT_THUMBNAIL_WORKERS = 1; // Or 3, or 4. Let's start with 2.
+const MEMOS_DIR = path.join(app.getPath('userData'), 'memos');
 
 async function processThumbnailQueue() {
     console.log('[QUEUE] processThumbnailQueue called.');
@@ -88,6 +89,50 @@ async function processThumbnailQueue() {
         console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers after dec: ${activeThumbnailWorkers}. Calling processThumbnailQueue recursively.`);
         // Process next item if any
         processThumbnailQueue();
+    }
+}
+
+function ensureMemosDirExists() {
+    if (!fs.existsSync(MEMOS_DIR)) {
+        try {
+            fs.mkdirSync(MEMOS_DIR, { recursive: true });
+            console.log(`Created memos directory: ${MEMOS_DIR}`);
+        } catch (e) {
+            console.error(`Failed to create memos directory ${MEMOS_DIR}:`, e);
+        }
+    }
+}
+
+function getMemoFilePath(mediaFilePath) {
+    if (!mediaFilePath) return null; // Handle undefined or null input
+    const mediaFilename = path.basename(mediaFilePath);
+    const memoFilename = path.parse(mediaFilename).name + '.md';
+    return path.join(MEMOS_DIR, memoFilename);
+}
+
+async function readMemo(mediaFilePath) {
+    const memoPath = getMemoFilePath(mediaFilePath);
+    if (!memoPath) return ""; // Or handle error appropriately
+    try {
+        if (fs.existsSync(memoPath)) {
+            return await fs.promises.readFile(memoPath, 'utf8');
+        }
+    } catch (e) {
+        console.error(`Error reading memo ${memoPath}:`, e);
+    }
+    return ""; // Default to empty string if no memo or error
+}
+
+async function saveMemo(mediaFilePath, content) {
+    ensureMemosDirExists(); // Ensure directory exists before saving
+    const memoPath = getMemoFilePath(mediaFilePath);
+    if (!memoPath) throw new Error('Could not determine memo file path.'); // Or handle error
+    try {
+        await fs.promises.writeFile(memoPath, content, 'utf8');
+        console.log(`Memo saved to ${memoPath}`);
+    } catch (e) {
+        console.error(`Error saving memo ${memoPath}:`, e);
+        throw e; // Re-throw to be caught by IPC handler
     }
 }
 
@@ -288,6 +333,7 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
+  ensureMemosDirExists(); // Ensure memos directory exists on startup
   createWindow();
 
   // Handle app-command for mouse back/forward buttons (primarily Windows)
@@ -636,6 +682,37 @@ ipcMain.on('request-thumbnail', (event, { filePath, fileType, imgIdForRenderer }
     console.log(`[IPC ON request-thumbnail] Task added for ${filePath}. New queue size: ${thumbnailQueue.length}`);
     processThumbnailQueue(); // Trigger queue processing
     console.log(`[IPC ON request-thumbnail] Called processThumbnailQueue for ${filePath}.`);
+});
+
+ipcMain.handle('get-memo', async (event, mediaFilePath) => {
+    if (!mediaFilePath) {
+        console.error('[IPC get-memo] Received request with no mediaFilePath.');
+        return ""; // Or throw an error / return specific error object
+    }
+    try {
+        return await readMemo(mediaFilePath);
+    } catch (e) {
+        console.error(`[IPC get-memo] Error reading memo for ${mediaFilePath}:`, e);
+        return ""; // Return empty string or an error indicator
+    }
+});
+
+ipcMain.handle('save-memo', async (event, { mediaFilePath, content }) => {
+    if (!mediaFilePath) {
+        console.error('[IPC save-memo] Received request with no mediaFilePath.');
+        return { success: false, error: 'No mediaFilePath provided.' };
+    }
+    if (typeof content !== 'string') {
+        // Ensure content is a string, even if empty, to avoid write errors.
+        content = String(content || "");
+    }
+    try {
+        await saveMemo(mediaFilePath, content);
+        return { success: true };
+    } catch (e) {
+        console.error(`[IPC save-memo] Error saving memo for ${mediaFilePath}:`, e);
+        return { success: false, error: e.message || 'Failed to save memo.' };
+    }
 });
 
 ipcMain.on('background-color-changed', (event, newColor) => {
