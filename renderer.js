@@ -12,6 +12,7 @@ let registeredFoldersList;
 let modalStatusMessage;
 let backgroundColorPicker;
 let appTitleHeader; // Added for completeness, though its logic is already in DOMContentLoaded
+let searchInput = null; // For search functionality
 
 const DEFAULT_BACKGROUND_COLOR = '#f0f0f0'; // Match initial CSS body background
 const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
@@ -219,6 +220,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found") {
 
 // Function to decide what to render based on the current filter
 async function renderMediaGrid() { // Made async to handle potential await for history
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
     let itemsToDisplay = currentAllMediaItems; // Default to all items
     let messagePrefix = "Loaded";
 
@@ -239,6 +241,19 @@ async function renderMediaGrid() { // Made async to handle potential await for h
     } else if (showingOnlyFavorites) {
         itemsToDisplay = currentAllMediaItems.filter(file => file.isFavorite);
         messagePrefix = "Displaying";
+    }
+
+    if (searchTerm) { // Only filter if searchTerm is not empty
+        itemsToDisplay = itemsToDisplay.filter(file => {
+            if (file && typeof file.filePath === 'string') {
+                const filename = file.filePath.split(/\/|\\/).pop().toLowerCase();
+                return filename.includes(searchTerm);
+            }
+            return false;
+        });
+        // Note: populateMediaGrid will handle the "No media files found" message
+        // if itemsToDisplay becomes empty after filtering.
+        // If a custom message for "no search results" is desired, messagePrefix could be updated here.
     }
 
     populateMediaGrid(itemsToDisplay, messagePrefix);
@@ -279,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modalStatusMessage = document.getElementById('modal-status-message');
     backgroundColorPicker = document.getElementById('background-color-picker');
     appTitleHeader = document.getElementById('app-title-header');
+    searchInput = document.getElementById('search-input');
 
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
@@ -383,6 +399,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         console.warn("Toggle history button not found.");
+    }
+
+    // Search input event listener
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderMediaGrid(); // Re-render the grid, which will apply the new search term
+        });
+    } else {
+        console.warn("Search input field not found.");
     }
 
     // Modal event listeners (already here, but ensure elements are assigned first)

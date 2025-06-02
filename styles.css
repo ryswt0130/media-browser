@@ -81,6 +81,19 @@ body {
     opacity: 0.9;
 }
 
+#search-input {
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    /* Consider a flexible width or a fixed width that fits well */
+    min-width: 150px; /* Example minimum width */
+    flex-grow: 0.5; /* Allow it to take some space, but not too aggressively */
+    max-width: 300px; /* Prevent it from becoming too large */
+    margin-left: 10px; /* Or adjust margins as needed */
+    margin-right: 10px;
+}
+
 /* Page Container Layout (Sidebar + Main Content) */
 .page-container {
     display: flex;
