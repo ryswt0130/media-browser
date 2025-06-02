@@ -89,55 +89,48 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
     // If searchTerm is active and filesToDisplay is empty, statusMessage is already set by renderMediaGrid.
 
 
-    filesToDisplay.forEach((file, index) => { // Added index for unique ID generation if needed later
+    filesToDisplay.forEach((file, index) => { // 'file' can be a media file object or a memo object
         try {
-            // 'file' can be a media file object or a memo object if isMemoView is true
-            const isMemo = isMemoView; // Clarity for the 'file' object
-            const itemData = isMemo ? file : file; // In this case, file is the memoObject or mediaFileObject
-
-            if (!itemData || (!isMemo && typeof itemData.filePath !== 'string')) {
-                console.error('Skipping invalid file object during grid population:', itemData);
-                return;
-            }
-            if (isMemo && (!itemData.memoFileName || !itemData.mediaFileBaseName)) {
-                 console.error('Skipping invalid memo object during grid population:', itemData);
-                return;
-            }
-
-            const displayFileName = isMemo ?
-                                  (itemData.mediaFileBaseName || itemData.memoFileName) :
-                                  (itemData.filePath.split(/\/|\\/).pop() || 'Unnamed File');
+            const itemData = file; // Use itemData to refer to either type of object
 
             const item = document.createElement('div');
-            item.classList.add('media-item'); // Use same class for now, can differentiate later
-            if (isMemo) {
-                item.classList.add('memo-list-item'); // Specific class for memo items
-            }
+            item.classList.add('media-item');
 
-            // For memos, data-filepath might be the memo's own path or the media's path.
-            // Let's use mediaFilePath if available, for consistency in potential interactions.
-            item.setAttribute('data-filepath', isMemo ? (itemData.mediaFilePath || itemData.memoFileName) : itemData.filePath);
-            if (!isMemo) {
+            let displayFileName;
+            let uniqueImgIdBase;
+
+            if (isMemoView) { // Note: isMemoView is passed to populateMediaGrid
+                item.classList.add('memo-list-item');
+                if (!itemData || !itemData.memoFileName || !itemData.mediaFileBaseName) { // Basic check for memo object structure
+                    console.error('Skipping invalid memo object:', itemData);
+                    return;
+                }
+                displayFileName = itemData.mediaFileBaseName || itemData.memoFileName;
+                item.setAttribute('data-filepath', itemData.mediaFilePath || itemData.memoFileName);
+                item.setAttribute('data-filetype', itemData.fileType || 'memo');
+                uniqueImgIdBase = itemData.mediaFilePath || itemData.memoFileName;
+            } else { // Standard media file
+                if (!itemData || typeof itemData.filePath !== 'string') {
+                    console.error('Skipping invalid media file object:', itemData);
+                    return;
+                }
+                displayFileName = itemData.filePath.split(/\/|\\/).pop() || 'Unnamed File';
+                item.setAttribute('data-filepath', itemData.filePath);
                 item.setAttribute('data-filetype', itemData.fileType);
-            } else {
-                item.setAttribute('data-filetype', itemData.fileType || 'memo'); // Indicate it's a memo or its associated media type
+                uniqueImgIdBase = itemData.filePath;
             }
-
 
             const img = document.createElement('img');
-            // For memos, use a combination of memoFileName and mediaFileBaseName for a more unique ID if filePath is null
-            const uniqueImgIdBase = isMemo ? (itemData.mediaFilePath || itemData.memoFileName) : itemData.filePath;
-            const uniqueImgId = `thumb-img-${uniqueImgIdBase}-${Date.now()}`;
+            const uniqueImgId = `thumb-img-${uniqueImgIdBase.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`; // Make ID more robust
             img.id = uniqueImgId;
 
             if (itemData.thumbnailPath) {
                 img.src = `file://${itemData.thumbnailPath}`;
                 img.alt = displayFileName;
-            } else if (!isMemo) { // Standard media file missing thumbnail
+            } else if (!isMemoView) { // Standard media file missing thumbnail
                 img.classList.add('thumbnail-loading');
                 img.alt = "Loading thumbnail...";
-                // On-demand thumbnail request for standard media files
-                (async () => {
+                (async () => { // IIFE for async operation
                     try {
                         if (!window.electronAPI) {
                             console.error("electronAPI not found for on-demand thumbnail for file:", itemData.filePath);
@@ -152,7 +145,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                             imgIdForRenderer: uniqueImgId
                         });
                     } catch (error) {
-                        console.error('Error in on-demand thumbnail IIFE (before send or setup) for', itemData.filePath, error);
+                        console.error('Error in on-demand thumbnail IIFE for', itemData.filePath, error);
                         const imgToUpdateOnError = document.getElementById(uniqueImgId);
                         if (imgToUpdateOnError) {
                             const parent = imgToUpdateOnError.parentElement;
@@ -166,14 +159,14 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                         }
                     }
                 })();
-            } else { // Memo item without a thumbnail (e.g. associated media file not found or also lacks thumb)
-                 img.classList.add('thumbnail-placeholder'); // A new class for styling memo placeholders
+            } else { // Memo item without an associated media thumbnail
+                 img.classList.add('thumbnail-placeholder');
                  img.alt = `Memo: ${displayFileName} (No Preview Available)`;
-                 // TODO: Consider a default SVG or icon for memo items without thumbnails
+                 // Default/placeholder image could be set via CSS for .thumbnail-placeholder
             }
 
             img.onerror = function() {
-                if (!this.classList.contains('thumbnail-error') && !this.classList.contains('thumbnail-loading')) {
+                 if (!this.classList.contains('thumbnail-error') && !this.classList.contains('thumbnail-loading')) {
                     console.error(`Error loading image src: ${this.src}`);
                     this.classList.add('thumbnail-error');
                     this.alt = 'Failed to load image';
@@ -190,7 +183,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
             filenamePara.textContent = displayFileName;
             item.appendChild(filenamePara);
 
-            if (isMemo) {
+            if (isMemoView) {
                 const datePara = document.createElement('p');
                 datePara.classList.add('memo-item-date');
                 datePara.textContent = `Modified: ${new Date(itemData.lastModifiedDate).toLocaleDateString()} ${new Date(itemData.lastModifiedDate).toLocaleTimeString()}`;
@@ -201,6 +194,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                         window.electronAPI.send('open-media', {
                             filePath: itemData.mediaFilePath,
                             fileType: itemData.fileType,
+                            // isFavorite status is handled by main process for open-media
                         });
                     } else {
                         console.warn('[MEMO LIST CLICK] Cannot open media, path or type missing for memo:', itemData);
@@ -209,7 +203,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 });
                 // No favorite button for memo list items
             } else {
-                // Existing logic for media items (favorite button, click to open media)
+                // Existing logic for media items (favorite button)
                 const favButton = document.createElement('button');
                 favButton.classList.add('favorite-btn');
                 favButton.innerHTML = itemData.isFavorite ? '★' : '☆';
@@ -233,6 +227,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 });
                 item.appendChild(favButton);
 
+                // Click listener for standard media items
                 item.addEventListener('click', () => {
                     if (itemData && itemData.filePath && itemData.fileType) {
                         console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
@@ -249,13 +244,6 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
         }
     });
 }
-        } else {
-            statusMessage.textContent = 'Select a directory to view media.';
-        }
-        return;
-    }
-
-    let currentViewMessage = `${messagePrefix} ${filesToDisplay.length} media items.`;
 
 // REMOVING THIS DUPLICATE/OLD selectDirBtn listener. The more complete one will be in DOMContentLoaded.
 
