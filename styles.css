@@ -449,11 +449,18 @@ body {
 }
 
 #memo-status-message {
-    margin-left: 10px; /* From inline style, can be kept or adjusted */
+    margin-left: 10px;
     font-size: 0.9em;
-    padding: 3px 6px; /* Adjusted padding slightly */
+    padding: 3px 6px;
     border-radius: 3px;
-    display: none; /* Initially hidden, JS will make it visible */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s; /* Visibility hidden after opacity fades */
+}
+#memo-status-message.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out; /* Visibility transition immediate when showing (no delay) */
 }
 #memo-status-message.success {
     color: #155724; /* Darker green text for better contrast on light bg */

@@ -368,13 +368,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log(`[MEMO] Memo saved for: ${currentFilePath}`);
                     if (memoStatusMessage) {
                         memoStatusMessage.textContent = 'Memo saved!';
-                        memoStatusMessage.className = 'success';
-                        memoStatusMessage.style.display = 'inline';
+                        memoStatusMessage.className = 'success'; // Set color class
+                        memoStatusMessage.classList.add('show'); // Trigger fade-in and visibility
+
                         setTimeout(() => {
                             if (memoStatusMessage) {
-                                memoStatusMessage.textContent = '';
-                                memoStatusMessage.style.display = 'none';
-                                memoStatusMessage.className = '';
+                                memoStatusMessage.classList.remove('show'); // Trigger fade-out
+                                // Text and color class will be cleared/reset by the next message display
                             }
                         }, 3000);
                     }
@@ -385,13 +385,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(`[MEMO] Error saving memo: `, e);
                 if (memoStatusMessage) {
                     memoStatusMessage.textContent = `Error: ${e.message || 'Failed to save'}`;
-                    memoStatusMessage.className = 'error';
-                    memoStatusMessage.style.display = 'inline';
+                    memoStatusMessage.className = 'error'; // Set color class
+                    memoStatusMessage.classList.add('show'); // Trigger fade-in and visibility
+
                     setTimeout(() => {
                         if (memoStatusMessage) {
-                            memoStatusMessage.textContent = '';
-                            memoStatusMessage.style.display = 'none';
-                            memoStatusMessage.className = '';
+                            memoStatusMessage.classList.remove('show'); // Trigger fade-out
                         }
                     }, 5000);
                 }
