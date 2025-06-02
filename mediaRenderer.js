@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const memoTextArea = document.getElementById('memo-textarea');
     const saveMemoBtn = document.getElementById('save-memo-btn');
     const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
+    const memoStatusMessage = document.getElementById('memo-status-message');
 
     // Apply initial background color
     const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -364,14 +365,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     content: memoTextArea.value
                 });
                 if (result.success) {
-                    alert('Memo saved!'); // Replace with a less obtrusive status message
                     console.log(`[MEMO] Memo saved for: ${currentFilePath}`);
+                    if (memoStatusMessage) {
+                        memoStatusMessage.textContent = 'Memo saved!';
+                        memoStatusMessage.className = 'success';
+                        memoStatusMessage.style.display = 'inline';
+                        setTimeout(() => {
+                            if (memoStatusMessage) {
+                                memoStatusMessage.textContent = '';
+                                memoStatusMessage.style.display = 'none';
+                                memoStatusMessage.className = '';
+                            }
+                        }, 3000);
+                    }
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
                 }
             } catch (e) {
                 console.error(`[MEMO] Error saving memo: `, e);
-                alert(`Error saving memo: ${e.message}`);
+                if (memoStatusMessage) {
+                    memoStatusMessage.textContent = `Error: ${e.message || 'Failed to save'}`;
+                    memoStatusMessage.className = 'error';
+                    memoStatusMessage.style.display = 'inline';
+                    setTimeout(() => {
+                        if (memoStatusMessage) {
+                            memoStatusMessage.textContent = '';
+                            memoStatusMessage.style.display = 'none';
+                            memoStatusMessage.className = '';
+                        }
+                    }, 5000);
+                }
             }
         });
     }

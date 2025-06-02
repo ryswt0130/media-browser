@@ -448,6 +448,24 @@ body {
     opacity: 0.9;
 }
 
+#memo-status-message {
+    margin-left: 10px; /* From inline style, can be kept or adjusted */
+    font-size: 0.9em;
+    padding: 3px 6px; /* Adjusted padding slightly */
+    border-radius: 3px;
+    display: none; /* Initially hidden, JS will make it visible */
+}
+#memo-status-message.success {
+    color: #155724; /* Darker green text for better contrast on light bg */
+    background-color: #d4edda; /* Light green background */
+    border: 1px solid #c3e6cb;
+}
+#memo-status-message.error {
+    color: #721c24; /* Darker red text */
+    background-color: #f8d7da; /* Light red background */
+    border: 1px solid #f5c6cb;
+}
+
 
 /* Styles for Maximized HTML View on Media Page */
 .media-page-container.html-view-maximized #media-viewer-main-content {
