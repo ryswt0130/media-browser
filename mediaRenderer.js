@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const appTitleHeader = document.getElementById('app-title-header');
     const mediaPageContainer = document.querySelector('.media-page-container'); // Get main container
 
+    // Comment elements
+    const commentInputArea = document.getElementById('comment-input-area');
+    const submitCommentBtn = document.getElementById('submit-comment-btn');
+    const commentsList = document.getElementById('comments-list');
+
     let currentFilePath = null;
     let currentFileType = null;
     let currentIsFavorite = false;
@@ -290,4 +295,110 @@ document.addEventListener('DOMContentLoaded', () => {
     backToGridBtn.addEventListener('click', () => {
         window.location.href = 'index.html';
     });
+
+    // --- Comments Functionality ---
+
+    function displayComments(commentsArray) {
+        if (!commentsList) {
+            console.error('Comments list DOM element not found.');
+            return;
+        }
+        commentsList.innerHTML = ''; // Clear existing comments
+
+        if (!commentsArray || commentsArray.length === 0) {
+            const noCommentsMessage = document.createElement('p');
+            noCommentsMessage.textContent = 'No comments yet.';
+            noCommentsMessage.classList.add('no-comments-message'); // For styling
+            commentsList.appendChild(noCommentsMessage);
+            return;
+        }
+
+        commentsArray.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.classList.add('comment-item'); // For styling
+
+            const commentText = document.createElement('p');
+            commentText.classList.add('comment-text');
+            commentText.textContent = comment.text;
+
+            const commentTimestamp = document.createElement('span');
+            commentTimestamp.classList.add('comment-timestamp');
+            try {
+                commentTimestamp.textContent = ` (on ${new Date(comment.timestamp).toLocaleString()})`;
+            } catch (e) {
+                commentTimestamp.textContent = ` (invalid date)`;
+                console.warn("Invalid timestamp for comment:", comment.timestamp);
+            }
+            
+            commentElement.appendChild(commentText);
+            commentText.appendChild(commentTimestamp); // Append timestamp to the text paragraph
+            commentsList.appendChild(commentElement);
+        });
+    }
+
+    async function loadComments(filePath) {
+        if (!filePath) {
+            console.warn('loadComments: No filePath provided.');
+            displayComments([]); // Display "No comments yet" or clear list
+            return;
+        }
+        if (!window.electronAPI) {
+            console.error("electronAPI not available for loading comments.");
+            displayComments([]);
+            return;
+        }
+        try {
+            console.log(`Loading comments for: ${filePath}`);
+            const fetchedComments = await window.electronAPI.invoke('get-comments', filePath);
+            displayComments(fetchedComments || []);
+        } catch (error) {
+            console.error(`Error loading comments for ${filePath}:`, error);
+            displayComments([]); // Display empty state on error
+        }
+    }
+
+    if (submitCommentBtn && commentInputArea) {
+        submitCommentBtn.addEventListener('click', async () => {
+            if (!currentFilePath) {
+                console.error('Cannot add comment: currentFilePath is not set.');
+                // Optionally, provide user feedback e.g. alert('Error: Media file path not available.');
+                return;
+            }
+            const commentText = commentInputArea.value.trim();
+            if (commentText === '') {
+                // Optionally, provide user feedback e.g. alert('Comment cannot be empty.');
+                return;
+            }
+
+            if (!window.electronAPI) {
+                console.error("electronAPI not available for adding comment.");
+                return;
+            }
+
+            try {
+                const newComment = await window.electronAPI.invoke('add-comment', { filePath: currentFilePath, commentText });
+                if (newComment) {
+                    commentInputArea.value = ''; // Clear input area
+                    console.log('Comment added, reloading comments.');
+                    await loadComments(currentFilePath); // Refresh the comments list
+                } else {
+                    console.error('Failed to add comment. Main process returned null or error.');
+                    // Optionally, provide user feedback e.g. alert('Error: Could not save comment.');
+                }
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                // Optionally, provide user feedback
+            }
+        });
+    } else {
+        console.warn('Comment input area or submit button not found. Commenting disabled.');
+    }
+
+    // Modify loadMedia to include loading comments
+    const originalLoadMedia = loadMedia; // Keep a reference if needed, or modify directly
+    // Redefine loadMedia to include comments loading (or integrate directly if preferred)
+    // For this example, I'll show how to integrate it into the existing loadMedia.
+    // This requires finding the `loadMedia` function and adding the call there.
+    // The diff will show this modification directly in the existing loadMedia.
+
 });

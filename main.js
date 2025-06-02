@@ -13,6 +13,7 @@ let allScannedMediaFiles = []; // To store all scanned media files with their de
 let favoritesFilePath;
 let historyFilePath;
 let scannedFoldersPath;
+let commentsFilePath; // Added for comments
 
 function ensureUserDataDirExists() {
     const userDataPath = app.getPath('userData');
@@ -28,6 +29,14 @@ function ensureFavoritesFileInitialized() {
         const userDataPath = ensureUserDataDirExists();
         favoritesFilePath = path.join(userDataPath, 'favorites.json');
         console.log(`Favorites file path initialized to: ${favoritesFilePath}`);
+    }
+}
+
+function ensureCommentsFileInitialized() {
+    if (!commentsFilePath) {
+        const userDataPath = ensureUserDataDirExists();
+        commentsFilePath = path.join(userDataPath, 'comments.json');
+        console.log(`Comments file path initialized to: ${commentsFilePath}`);
     }
 }
 
@@ -436,9 +445,120 @@ ipcMain.on('add-to-history', (event, { filePath, fileType }) => {
     }
 });
 
+// Comments helper functions
+function readCommentsFile() {
+    ensureCommentsFileInitialized();
+    try {
+        if (fs.existsSync(commentsFilePath)) {
+            const fileContent = fs.readFileSync(commentsFilePath, 'utf8');
+            if (fileContent) {
+                return JSON.parse(fileContent);
+            }
+        }
+    } catch (error) {
+        console.error('Error reading or parsing comments.json:', error);
+    }
+    return {}; // Return empty object for errors or if file doesn't exist
+}
+
+function writeCommentsFile(data) {
+    ensureCommentsFileInitialized();
+    try {
+        const jsonData = JSON.stringify(data, null, 2);
+        fs.writeFileSync(commentsFilePath, jsonData, 'utf8');
+        console.log('Comments data saved to comments.json');
+    } catch (error) {
+        console.error('Error writing comments.json:', error);
+    }
+}
+
+function getComments(filePath) {
+    if (!filePath) {
+        console.error('getComments: filePath is null or undefined.');
+        return [];
+    }
+    try {
+        const allComments = readCommentsFile(); // Returns {} if error or not found
+        return allComments[filePath] || [];
+    } catch (error) {
+        console.error(`Error in getComments for filePath "${filePath}":`, error);
+        return [];
+    }
+}
+
+function saveComments(filePath, commentsArray) {
+    if (!filePath) {
+        console.error('saveComments: filePath is null or undefined. Cannot save comments.');
+        return;
+    }
+    if (!Array.isArray(commentsArray)) {
+        console.error('saveComments: commentsArray is not an array. Cannot save.');
+        return;
+    }
+    try {
+        const allComments = readCommentsFile(); // Returns {} if error or not found
+        allComments[filePath] = commentsArray;
+        writeCommentsFile(allComments);
+        console.log(`Comments saved for filePath "${filePath}"`);
+    } catch (error) {
+        console.error(`Error in saveComments for filePath "${filePath}":`, error);
+        // Optionally, re-throw or handle more gracefully depending on requirements
+    }
+}
+
+function addComment(filePath, commentText) {
+    if (!filePath || typeof commentText !== 'string' || commentText.trim() === '') {
+        console.error('addComment: Invalid filePath or commentText.');
+        return null; // Or throw an error, depending on desired error handling
+    }
+    try {
+        const currentComments = getComments(filePath); // Gets existing comments or []
+        const newComment = {
+            text: commentText.trim(),
+            timestamp: new Date().toISOString()
+        };
+        const updatedCommentsList = [...currentComments, newComment];
+        saveComments(filePath, updatedCommentsList);
+        console.log(`Comment added for filePath "${filePath}": "${commentText}"`);
+        return newComment; // Return the newly added comment object
+    } catch (error) {
+        console.error(`Error in addComment for filePath "${filePath}":`, error);
+        return null; // Or re-throw
+    }
+}
+
 // IPC handler for getting the list of scanned folders
 ipcMain.handle('get-scanned-folders', async () => {
     return getScannedFolders();
+});
+
+// IPC handler for getting comments for a file
+ipcMain.handle('get-comments', async (event, filePath) => {
+    if (!filePath) {
+        console.error('IPC get-comments: filePath is missing.');
+        return [];
+    }
+    try {
+        return getComments(filePath);
+    } catch (error) {
+        console.error(`IPC get-comments: Error for filePath "${filePath}":`, error);
+        return []; // Return empty array on error
+    }
+});
+
+// IPC handler for adding a comment to a file
+ipcMain.handle('add-comment', async (event, { filePath, commentText }) => {
+    if (!filePath || typeof commentText !== 'string') {
+        console.error('IPC add-comment: Invalid filePath or commentText.');
+        return null; // Or return an error object
+    }
+    try {
+        const newComment = addComment(filePath, commentText);
+        return newComment; // Returns the new comment object or null if error in addComment
+    } catch (error) {
+        console.error(`IPC add-comment: Error for filePath "${filePath}":`, error);
+        return null; // Or return an error object
+    }
 });
 
 // IPC handler for getting history items
@@ -550,3 +670,8 @@ ipcMain.on('background-color-changed', (event, newColor) => {
         }
     });
 });
+
+// Ensure functions are available for other modules if needed, though IPC is typical for renderer access.
+// For now, they are module-scoped and can be used by other functions within main.js.
+// If direct access from other main process modules was needed, we'd export them:
+// module.exports = { ..., readCommentsFile, writeCommentsFile }; // (Adjust exports as needed)
