@@ -88,7 +88,7 @@ async function processThumbnailQueue() {
         activeThumbnailWorkers--;
         console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers after dec: ${activeThumbnailWorkers}. Calling processThumbnailQueue recursively.`);
         // Process next item if any
-        processThumbnailQueue();
+        processThumbnailQueue(); 
     }
 }
 
@@ -157,7 +157,7 @@ async function getMemosList() {
             }
 
             const mediaFileBaseName = path.parse(memoMdFile).name; // e.g., "myvideo" from "myvideo.md"
-
+            
             // Find corresponding media file in allScannedMediaFiles
             const associatedMediaFile = allScannedMediaFiles.find(
                 media => path.parse(media.filePath).name === mediaFileBaseName
@@ -721,7 +721,7 @@ ipcMain.on('request-thumbnail', (event, { filePath, fileType, imgIdForRenderer }
         fileType,
         imgIdForRenderer,
         windowId, // ID of the window that made the request
-        isRendererRequest: true
+        isRendererRequest: true 
     });
     console.log(`[IPC ON request-thumbnail] Task added for ${filePath}. New queue size: ${thumbnailQueue.length}`);
     processThumbnailQueue(); // Trigger queue processing
@@ -748,7 +748,7 @@ ipcMain.handle('save-memo', async (event, { mediaFilePath, content }) => {
     }
     if (typeof content !== 'string') {
         // Ensure content is a string, even if empty, to avoid write errors.
-        content = String(content || "");
+        content = String(content || ""); 
     }
     try {
         await saveMemo(mediaFilePath, content);

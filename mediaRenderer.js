@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentVideoElement = null;
     let currentFilePathOnPage = null;
     const mediaTitleDisplay = document.getElementById('media-title-display');
-    const memoSection = document.getElementById('memo-section');
+    const memoSection = document.getElementById('memo-section'); 
     const memoTextArea = document.getElementById('memo-textarea');
     const saveMemoBtn = document.getElementById('save-memo-btn');
     const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearMediaViewer() {
         const mediaElements = mediaViewerContainer.querySelectorAll('video, img, iframe, p#media-error-message'); // Include error message if it has an ID
         mediaElements.forEach(el => el.remove());
-        currentVideoElement = null;
+        currentVideoElement = null; 
     }
 
     function clearRecommendations() {
@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Load Memo
-        if (memoTextArea) {
+        if (memoTextArea) { 
             memoTextArea.value = ''; // Clear previous memo
             window.electronAPI.invoke('get-memo', currentFilePath)
                 .then(memoContent => {
@@ -360,9 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             try {
                 console.log(`[MEMO] Saving memo for: ${currentFilePath}`);
-                const result = await window.electronAPI.invoke('save-memo', {
-                    mediaFilePath: currentFilePath,
-                    content: memoTextArea.value
+                const result = await window.electronAPI.invoke('save-memo', { 
+                    mediaFilePath: currentFilePath, 
+                    content: memoTextArea.value 
                 });
                 if (result.success) {
                     console.log(`[MEMO] Memo saved for: ${currentFilePath}`);
@@ -372,11 +372,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         memoStatusMessage.classList.add('show'); // Trigger fade-in and visibility
 
                         setTimeout(() => {
-                            if (memoStatusMessage) {
+                            if (memoStatusMessage) { 
                                 memoStatusMessage.classList.remove('show'); // Trigger fade-out
                                 // Text and color class will be cleared/reset by the next message display
                             }
-                        }, 3000);
+                        }, 3000); 
                     }
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (memoStatusMessage) {
                             memoStatusMessage.classList.remove('show'); // Trigger fade-out
                         }
-                    }, 5000);
+                    }, 5000); 
                 }
             }
         });
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const minutes = Math.floor((time % 3600) / 60);
                 const seconds = Math.floor(time % 60);
                 const timestamp = `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}] - `;
-
+                
                 const start = memoTextArea.selectionStart;
                 const end = memoTextArea.selectionEnd;
                 const text = memoTextArea.value;

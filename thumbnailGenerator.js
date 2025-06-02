@@ -39,7 +39,7 @@ function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) { // Signature k
         if (code >= 0x0000 && code <= 0x007F) return 0.5;
         // Half-width Katakana (0.5)
         if (code >= 0xFF61 && code <= 0xFF9F) return 0.5;
-
+        
         // CJK Symbols and Punctuation (1.0)
         if (code >= 0x3000 && code <= 0x303F) return 1.0;
         // Hiragana (1.0)
@@ -53,7 +53,7 @@ function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) { // Signature k
 
         // Broader heuristic for other characters:
         if (code > 255) return 1.0; // Default others (often accented Latin, etc.) to full-width
-
+        
         return 0.5; // Default for remaining characters (e.g., some punctuation not in CJK symbols)
     }
 
@@ -133,7 +133,7 @@ function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) { // Signature k
     if (currentLine !== "") { // Push any remaining line content
         lines.push(currentLine);
     }
-
+    
     return lines;
 }
 

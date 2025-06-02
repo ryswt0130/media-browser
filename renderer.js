@@ -13,6 +13,9 @@ let modalStatusMessage;
 let backgroundColorPicker;
 let appTitleHeader; // Added for completeness, though its logic is already in DOMContentLoaded
 let searchInput = null; // For search functionality
+let toggleMemoListViewBtn = null;
+let memoSortControls = null;
+let memoSortSelect = null;
 
 const DEFAULT_BACKGROUND_COLOR = '#f0f0f0'; // Match initial CSS body background
 const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
@@ -90,12 +93,12 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
 
 
     filesToDisplay.forEach((file, index) => { // 'file' can be a media file object or a memo object
-        try {
+        try { 
             const itemData = file; // Use itemData to refer to either type of object
 
             const item = document.createElement('div');
             item.classList.add('media-item');
-
+            
             let displayFileName;
             let uniqueImgIdBase;
 
@@ -106,7 +109,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     return;
                 }
                 displayFileName = itemData.mediaFileBaseName || itemData.memoFileName;
-                item.setAttribute('data-filepath', itemData.mediaFilePath || itemData.memoFileName);
+                item.setAttribute('data-filepath', itemData.mediaFilePath || itemData.memoFileName); 
                 item.setAttribute('data-filetype', itemData.fileType || 'memo');
                 uniqueImgIdBase = itemData.mediaFilePath || itemData.memoFileName;
             } else { // Standard media file
@@ -134,22 +137,22 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     try {
                         if (!window.electronAPI) {
                             console.error("electronAPI not found for on-demand thumbnail for file:", itemData.filePath);
-                            img.alt = "API Error";
+                            img.alt = "API Error"; 
                             img.classList.remove('thumbnail-loading');
                             img.classList.add('thumbnail-error');
-                            return;
+                            return; 
                         }
                         window.electronAPI.send('request-thumbnail', {
                             filePath: itemData.filePath,
                             fileType: itemData.fileType,
                             imgIdForRenderer: uniqueImgId
                         });
-                    } catch (error) {
+                    } catch (error) { 
                         console.error('Error in on-demand thumbnail IIFE for', itemData.filePath, error);
                         const imgToUpdateOnError = document.getElementById(uniqueImgId);
                         if (imgToUpdateOnError) {
                             const parent = imgToUpdateOnError.parentElement;
-                            if (parent) {
+                            if (parent) { 
                                const existingMsg = parent.querySelector('.thumbnail-message-overlay');
                                if (existingMsg) existingMsg.remove();
                             }
@@ -160,7 +163,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     }
                 })();
             } else { // Memo item without an associated media thumbnail
-                 img.classList.add('thumbnail-placeholder');
+                 img.classList.add('thumbnail-placeholder'); 
                  img.alt = `Memo: ${displayFileName} (No Preview Available)`;
                  // Default/placeholder image could be set via CSS for .thumbnail-placeholder
             }
@@ -185,14 +188,14 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
 
             if (isMemoView) {
                 const datePara = document.createElement('p');
-                datePara.classList.add('memo-item-date');
+                datePara.classList.add('memo-item-date'); 
                 datePara.textContent = `Modified: ${new Date(itemData.lastModifiedDate).toLocaleDateString()} ${new Date(itemData.lastModifiedDate).toLocaleTimeString()}`;
                 item.appendChild(datePara);
 
                 item.addEventListener('click', () => {
                     if (itemData.mediaFilePath && itemData.fileType) {
-                        window.electronAPI.send('open-media', {
-                            filePath: itemData.mediaFilePath,
+                        window.electronAPI.send('open-media', { 
+                            filePath: itemData.mediaFilePath, 
                             fileType: itemData.fileType,
                             // isFavorite status is handled by main process for open-media
                         });
@@ -206,18 +209,18 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 // Existing logic for media items (favorite button)
                 const favButton = document.createElement('button');
                 favButton.classList.add('favorite-btn');
-                favButton.innerHTML = itemData.isFavorite ? '★' : '☆';
+                favButton.innerHTML = itemData.isFavorite ? '★' : '☆'; 
                 favButton.setAttribute('aria-label', itemData.isFavorite ? 'Unmark as favorite' : 'Mark as favorite');
                 favButton.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const filePath = itemData.filePath;
+                    e.stopPropagation(); 
+                    const filePath = itemData.filePath; 
                     try {
                         const newIsFavorite = await window.electronAPI.invoke('toggle-favorite', filePath);
                         favButton.innerHTML = newIsFavorite ? '★' : '☆';
                         favButton.setAttribute('aria-label', newIsFavorite ? 'Unmark as favorite' : 'Mark as favorite');
                         const masterListItem = currentAllMediaItems.find(m => m.filePath === filePath);
                         if (masterListItem) masterListItem.isFavorite = newIsFavorite;
-                        itemData.isFavorite = newIsFavorite;
+                        itemData.isFavorite = newIsFavorite; 
                         if (showingOnlyFavorites && !newIsFavorite) {
                             renderMediaGrid();
                         }
@@ -229,7 +232,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
 
                 // Click listener for standard media items
                 item.addEventListener('click', () => {
-                    if (itemData && itemData.filePath && itemData.fileType) {
+                    if (itemData && itemData.filePath && itemData.fileType) { 
                         console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
                         window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
                     } else {
@@ -239,7 +242,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
             }
             mediaGrid.appendChild(item);
 
-        } catch (error) {
+        } catch (error) { 
             console.error('Error processing item for grid display:', file, error);
         }
     });
@@ -274,7 +277,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
         messagePrefix = "Displaying";
     } else if (showingOnlyMemos) {
         if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
-        messagePrefix = "Displaying";
+        messagePrefix = "Displaying"; 
         try {
             console.log('[MEMO LIST RENDER] Fetching memos list...');
             let memos = await window.electronAPI.invoke('get-memos-list');
@@ -285,7 +288,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
             } else { // Default 'mtime_desc'
                 memos.sort((a, b) => new Date(b.lastModifiedDate) - new Date(a.lastModifiedDate));
             }
-
+            
             itemsToDisplay = memos;
             // Status message will be handled by populateMediaGrid or updated below if search is active
         } catch (e) {
@@ -299,19 +302,19 @@ async function renderMediaGrid() { // Made async to handle potential await for h
         messagePrefix = "Loaded";
     }
 
-    if (searchTerm) {
+    if (searchTerm) { 
         itemsToDisplay = itemsToDisplay.filter(item => {
             if (!item) return false;
             let searchableText = '';
             if (showingOnlyMemos) {
                 // For memos, search in mediaFileBaseName (if available) or memoFileName
                 searchableText = (item.mediaFileBaseName || item.memoFileName || '').toLowerCase();
-            } else if (item.filePath) {
+            } else if (item.filePath) { 
                 searchableText = item.filePath.split(/\/|\\/).pop().toLowerCase();
             }
             return searchableText.includes(searchTerm);
         });
-
+        
         if (itemsToDisplay.length === 0) {
             let baseViewName = "results"; // Generic term if no specific view is active (should not happen with current logic)
             if (showingOnlyFavorites) baseViewName = "favorites";
@@ -321,7 +324,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
             if (statusMessage) statusMessage.textContent = `No items in ${baseViewName} matching "${searchTerm}".`;
         }
     }
-
+    
     populateMediaGrid(itemsToDisplay, messagePrefix, showingOnlyMemos);
 }
 
@@ -408,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundColorPicker = document.getElementById('background-color-picker');
     appTitleHeader = document.getElementById('app-title-header');
     searchInput = document.getElementById('search-input');
-    const toggleMemoListViewBtn = document.getElementById('toggle-memo-list-view-btn');
-    const memoSortControls = document.getElementById('memo-sort-controls');
-    const memoSortSelect = document.getElementById('memo-sort-select');
+    toggleMemoListViewBtn = document.getElementById('toggle-memo-list-view-btn');
+    memoSortControls = document.getElementById('memo-sort-controls');
+    memoSortSelect = document.getElementById('memo-sort-select');
 
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
@@ -533,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (showingOnlyMemos) {
                 showingOnlyFavorites = false; // Deactivate other views
                 showingOnlyHistory = false;
-                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites'; 
                 if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
                 toggleMemoListViewBtn.textContent = 'Show All Media';
                 if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
@@ -552,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         memoSortSelect.addEventListener('change', (event) => {
             currentMemoSort = event.target.value;
             if (showingOnlyMemos) { // Only re-render if memo view is active
-                renderMediaGrid();
+                renderMediaGrid(); 
             }
         });
     } else {
