@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAppName = "My Media Browser";
     let currentVideoElement = null;
     let currentFilePathOnPage = null;
+    let currentRawMemoContent = ''; // Added for new memo workflow
     const mediaTitleDisplay = document.getElementById('media-title-display');
     const memoSection = document.getElementById('memo-section'); 
     const memoTextArea = document.getElementById('memo-textarea');
@@ -26,42 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
     const memoStatusMessage = document.getElementById('memo-status-message');
     const memoDisplayArea = document.getElementById('memo-display-area');
-    const editMemoBtn = document.getElementById('edit-memo-btn');
-    const cancelEditMemoBtn = document.getElementById('cancel-edit-memo-btn');
+    // editMemoBtn and cancelEditMemoBtn are no longer used with the new UI flow
+    // const editMemoBtn = document.getElementById('edit-memo-btn');
+    // const cancelEditMemoBtn = document.getElementById('cancel-edit-memo-btn');
 
-    function showMemoDisplayMode(content) {
-        if (memoDisplayArea) {
-            memoDisplayArea.innerText = content; // For plain text display from .md
-            memoDisplayArea.style.display = 'block';
-        }
-        if (editMemoBtn) editMemoBtn.style.display = 'inline-block';
-
-        if (memoTextArea) memoTextArea.style.display = 'none';
-        if (saveMemoBtn) saveMemoBtn.style.display = 'none';
-        if (cancelEditMemoBtn) cancelEditMemoBtn.style.display = 'none';
-        if (insertTimestampBtn) insertTimestampBtn.style.display = 'none'; // Base state for display mode
-        console.log('[MEMO MODE] Switched to Display Mode');
-    }
-
-    function showMemoEditMode(currentContent) {
-        if (memoTextArea) {
-            memoTextArea.value = currentContent;
-            memoTextArea.style.display = 'block';
-            memoTextArea.focus(); // Focus on textarea when switching to edit mode
-        }
-        if (saveMemoBtn) saveMemoBtn.style.display = 'inline-block';
-        if (cancelEditMemoBtn) cancelEditMemoBtn.style.display = 'inline-block';
-        
-        if (currentFileType === 'video' && insertTimestampBtn) {
-            insertTimestampBtn.style.display = 'inline-block';
-        } else if (insertTimestampBtn) {
-            insertTimestampBtn.style.display = 'none';
-        }
-
-        if (memoDisplayArea) memoDisplayArea.style.display = 'none';
-        if (editMemoBtn) editMemoBtn.style.display = 'none';
-        console.log('[MEMO MODE] Switched to Edit Mode');
-    }
+    // Old mode switching functions are no longer needed
+    // function showMemoDisplayMode(content) { ... }
+    // function showMemoEditMode(currentContent) { ... }
 
     // Apply initial background color
     const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -230,20 +202,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Load Memo
-        if (memoTextArea && memoDisplayArea) { // Ensure both are available
-            memoTextArea.value = ''; // Clear edit area
-            memoDisplayArea.innerText = ''; // Clear display area
+        if (memoDisplayArea && memoTextArea) { 
+            memoTextArea.value = ''; // Clear input field for new entries
+            memoDisplayArea.innerText = ''; // Clear display area initially
             window.electronAPI.invoke('get-memo', currentFilePath)
-                .then(memoContent => {
-                    showMemoDisplayMode(memoContent); // Show loaded content in display mode
-                    console.log(`[MEMO] Memo loaded for: ${currentFilePath}`);
+                .then(fetchedMemoContent => {
+                    currentRawMemoContent = fetchedMemoContent; 
+                    memoDisplayArea.innerText = currentRawMemoContent; 
+                    console.log(`[MEMO] Memo loaded and displayed for: ${currentFilePath}`);
                 })
                 .catch(e => {
-                    console.error(`[MEMO] Error loading memo for ${currentFilePath}:`, e);
-                    showMemoDisplayMode("Error loading memo."); // Show error in display mode
+                    console.error(`[MEMO] Error loading memo in loadMedia for ${currentFilePath}:`, e);
+                    currentRawMemoContent = "Error loading memo."; 
+                    memoDisplayArea.innerText = currentRawMemoContent; 
                 });
         }
-        // Timestamp button visibility is now handled by showMemoDisplayMode/showMemoEditMode
+
+        // Timestamp button visibility (based on current media type)
+        if (insertTimestampBtn) {
+            insertTimestampBtn.style.display = (currentFileType === 'video' ? 'inline-block' : 'none');
+        }
 
         // Set the new media title
         if (mediaTitleDisplay) {
@@ -389,25 +367,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             try {
+                let newEntry = memoTextArea.value.trim();
+                if (newEntry === "") {
+                    if (memoStatusMessage) {
+                        memoStatusMessage.textContent = 'Memo entry is empty.';
+                        memoStatusMessage.className = 'error'; 
+                        memoStatusMessage.classList.add('show');
+                        setTimeout(() => {
+                            if (memoStatusMessage) memoStatusMessage.classList.remove('show');
+                        }, 3000);
+                    }
+                    return; 
+                }
+
+                let prefix = "";
+                // Note: currentVideoElement might not be the one associated with currentFilePath if user navigated away
+                // This timestamping assumes the video being viewed IS the one the memo is for.
+                // A more robust solution might involve storing video element with its path or passing time from player.
+                if (currentVideoElement && currentFileType === 'video') { 
+                    const time = currentVideoElement.currentTime;
+                    const hours = Math.floor(time / 3600);
+                    const minutes = Math.floor((time % 3600) / 60);
+                    const seconds = Math.floor(time % 60);
+                    prefix = `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}] - `;
+                }
+                
+                const contentToSave = (currentRawMemoContent ? currentRawMemoContent + "\n\n" : "") + prefix + newEntry;
+
                 console.log(`[MEMO] Saving memo for: ${currentFilePath}`);
                 const result = await window.electronAPI.invoke('save-memo', { 
                     mediaFilePath: currentFilePath, 
-                    content: memoTextArea.value 
+                    content: contentToSave
                 });
                 if (result.success) {
-                    console.log(`[MEMO] Memo saved for: ${currentFilePath}`);
+                    console.log(`[MEMO] Memo entry saved for: ${currentFilePath}`);
                     if (memoStatusMessage) {
-                        memoStatusMessage.textContent = 'Memo saved!';
-                        memoStatusMessage.className = 'success'; // Set color class
-                        memoStatusMessage.classList.add('show'); // Trigger fade-in and visibility
+                        memoStatusMessage.textContent = 'Entry saved!'; // Updated message
+                        memoStatusMessage.className = 'success'; 
+                        memoStatusMessage.classList.add('show'); 
 
                         setTimeout(() => {
                             if (memoStatusMessage) { 
-                                memoStatusMessage.classList.remove('show'); // Trigger fade-out
+                                memoStatusMessage.classList.remove('show'); 
                             }
                         }, 3000); 
                     }
-            showMemoDisplayMode(memoTextArea.value); // Switch to display mode with new content
+                    // After saving, clear the textarea and reload the full memo display
+                    memoTextArea.value = ''; 
+                    // Reload and display the full memo
+                    const updatedMemoContent = await window.electronAPI.invoke('get-memo', currentFilePath);
+                    if(memoDisplayArea) memoDisplayArea.innerText = updatedMemoContent; 
+                    currentRawMemoContent = updatedMemoContent; // Update local cache
+
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
                 }
@@ -428,20 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Edit Memo Button Event Listener
-    if (editMemoBtn && memoDisplayArea && memoTextArea) {
-        editMemoBtn.addEventListener('click', () => {
-            showMemoEditMode(memoDisplayArea.innerText); // Pass current displayed content
-        });
-    }
-
-    // Cancel Edit Memo Button Event Listener
-    if (cancelEditMemoBtn && memoDisplayArea && memoTextArea) {
-        cancelEditMemoBtn.addEventListener('click', () => {
-            // Revert to displaying the content that was shown before editing started
-            showMemoDisplayMode(memoDisplayArea.innerText); 
-        });
-    }
+    // Event listeners for editMemoBtn and cancelEditMemoBtn are removed as buttons are removed.
 
     // Insert Timestamp Button Event Listener
     if (insertTimestampBtn && memoTextArea) {

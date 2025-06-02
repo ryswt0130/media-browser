@@ -432,56 +432,41 @@ body {
     padding-bottom: 4px;
 }
 
-#memo-display-area {
-    padding: 8px;
-    background-color: #2e2e2e; /* Slightly different from textarea bg for distinction */
-    border: 1px solid #444;
-    border-radius: 4px;
-    white-space: pre-wrap; /* Preserve newlines and spaces */
-    min-height: 80px; 
-    margin-bottom: 8px;
-    color: #ddd; 
-}
-
-#memo-textarea {
+/* Styles for the new memo layout */
+#memo-textarea { /* For new entry input */
     width: 100%; 
     box-sizing: border-box; 
     padding: 8px;
-    margin-bottom: 8px; 
+    margin-bottom: 8px; /* Space before controls div */
     border-radius: 4px;
     border: 1px solid #555;
     background-color: #333; 
     color: #ddd; 
     font-family: sans-serif; 
-    min-height: 100px; 
-    display: none; /* Hidden by default, shown in edit mode */
-    /* rows attribute from HTML provides initial height, CSS min-height ensures it's at least this tall */
+    min-height: 60px; /* Adjusted from rows="5" roughly */
+    display: block; /* Ensure it's visible and block */
 }
 
-#edit-memo-btn {
-    padding: 8px 12px;
-    font-size: 13px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background-color: #17a2b8; /* Example: Info/Blue color for Edit */
-    color: white;
-    margin-bottom: 8px; 
+#memo-controls {
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-bottom: 15px; /* Space before the display area h4 */
 }
 
-#save-memo-btn {
+#save-memo-btn { /* Now "Save Entry" button */
     padding: 8px 12px;
     font-size: 13px;
-    display: none; /* Hidden by default */
     border: none;
     border-radius: 4px;
     cursor: pointer;
     background-color: #007bff; 
     color: white;
-    margin-right: 5px; 
+    /* margin-right is handled by gap on parent */
+    display: inline-block; /* Should be visible */
 }
 
-#insert-timestamp-btn { /* This rule might need to be combined or adjusted if #save-memo-btn selector is too general */
+#insert-timestamp-btn {
     padding: 8px 12px;
     font-size: 13px;
     border: none;
@@ -489,38 +474,47 @@ body {
     cursor: pointer;
     background-color: #6c757d; 
     color: white;
-    margin-right: 5px; /* Keep consistent margin with save button */
-    display: none; /* Default to hidden, JS will toggle (also set by JS based on video type) */
-    margin-left: 5px; 
+    /* margin-right and margin-left handled by gap on parent */
+    display: none; /* JS will toggle based on video type */
 }
 
-#cancel-edit-memo-btn {
-    padding: 8px 12px;
-    font-size: 13px;
-    border: none;
+/* #edit-memo-btn and #cancel-edit-memo-btn rules will be removed */
+
+#memo-section h4 { /* For "Saved Memo:" heading */
+    margin-top: 10px; 
+    margin-bottom: 5px;
+    font-size: 1.0em; 
+    color: #c0c0c0; 
+    border-bottom: 1px solid #383838;
+    padding-bottom: 3px;
+}
+
+#memo-display-area { /* For displaying all saved memo content */
+    padding: 8px;
+    background-color: #2e2e2e; 
+    border: 1px solid #444;
     border-radius: 4px;
-    cursor: pointer;
-    background-color: #6c757d; /* Example: Gray for Cancel */
-    color: white;
-    margin-left: 5px;
-    display: none; /* Hidden by default */
+    white-space: pre-wrap; 
+    min-height: 80px; 
+    color: #ddd; 
+    margin-bottom: 0; /* It's the last element in the section */
 }
 
-#edit-memo-btn:hover,
 #save-memo-btn:hover,
-#insert-timestamp-btn:hover,
-#cancel-edit-memo-btn:hover {
+#insert-timestamp-btn:hover { /* Update hover group */
     opacity: 0.9;
 }
 
 #memo-status-message {
-    margin-left: 10px;
+    /* margin-left: 10px; /* Handled by gap in #memo-controls */
     font-size: 0.9em;
     padding: 3px 6px;
     border-radius: 3px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s; /* Visibility hidden after opacity fades */
+    padding: 3px 6px; /* Keep this */
+    border-radius: 3px; /* Keep this */
 }
 #memo-status-message.show {
     opacity: 1;

@@ -26,14 +26,17 @@
         <div id="media-recommendations-sidebar">
             <div id="memo-section">
                 <h3>Memo</h3>
+                <!-- Input Area -->
+                <textarea id="memo-textarea" rows="5" placeholder="Add a new memo entry..."></textarea> 
+                <div id="memo-controls"> <!-- Wrapper for buttons -->
+                    <button id="save-memo-btn">Save Entry</button> <!-- Text changed for clarity -->
+                    <button id="insert-timestamp-btn">Insert Timestamp</button> 
+                    <span id="memo-status-message"></span> 
+                </div>
+
+                <!-- Display Area for all saved memo content -->
+                <h4>Saved Memo:</h4> <!-- Or similar title for display area -->
                 <div id="memo-display-area" class="memo-content-display"></div>
-                <button id="edit-memo-btn">Edit Memo</button>
-                
-                <textarea id="memo-textarea" rows="8"></textarea> 
-                <button id="save-memo-btn">Save Memo</button>
-                <button id="insert-timestamp-btn">Insert Timestamp</button>
-                <button id="cancel-edit-memo-btn">Cancel</button>
-                <span id="memo-status-message"></span>
             </div>
             <hr style="margin-bottom: 20px;"> <!-- Optional: add a horizontal rule for separation -->
             <div id="recommendations-section">
