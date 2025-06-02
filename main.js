@@ -22,7 +22,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const thumbnailQueue = [];
 let activeThumbnailWorkers = 0;
-const MAX_CONCURRENT_THUMBNAIL_WORKERS = 2; // Or 3, or 4. Let's start with 2.
+const MAX_CONCURRENT_THUMBNAIL_WORKERS = 1; // Or 3, or 4. Let's start with 2.
 
 async function processThumbnailQueue() {
     console.log('[QUEUE] processThumbnailQueue called.');
