@@ -30,7 +30,7 @@ function escapeHTML(str) {
 }
 
 function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) { // Signature kept for compatibility
-    const TARGET_LINE_WIDTH = 10.0; // Target width in full-width character equivalents
+    const TARGET_LINE_WIDTH = 13.0; // Target width in full-width character equivalents
 
     function getCharDisplayWidth(char) {
         const code = char.charCodeAt(0);

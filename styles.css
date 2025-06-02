@@ -385,7 +385,7 @@ body {
 
 /* Styles for Maximized HTML View on Media Page */
 .media-page-container.html-view-maximized #media-viewer-main-content {
-    flex-grow: 6;
+    flex-grow: 3;
     flex-shrink: 0;
 }
 
