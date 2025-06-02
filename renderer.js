@@ -20,6 +20,8 @@ const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
 let currentAllMediaItems = []; // Store the full list of media items
 let showingOnlyFavorites = false;
 let showingOnlyHistory = false;
+let showingOnlyMemos = false;
+let currentMemoSort = 'mtime_desc'; // Default sort
 
 // Initialize and handle master volume
 function applyBackgroundColor(color) {
@@ -41,16 +43,212 @@ function initializeVolume() {
 // Corrected: The erroneous populateMediaGrid definition (lines 45-55) is removed.
 // The correct definition below (previously starting at line 57) is now the active one.
 
-function populateMediaGrid(filesToDisplay, messagePrefix = "Found") {
+function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView = false) {
     mediaGrid.innerHTML = ''; // Clear existing grid
 
+    // Status message handling is now more complex due to search, so primary "no items" will be set by renderMediaGrid if search is active
+    // This block now primarily handles cases where the base view itself is empty *before* search.
     if (!filesToDisplay || filesToDisplay.length === 0) {
-        if (showingOnlyHistory) {
-            statusMessage.textContent = 'No items in history. View some media to populate history.';
-        } else if (showingOnlyFavorites) {
-            statusMessage.textContent = 'No favorite items found. Click "Show All" to see all media or mark some items as favorites.';
-        } else if (messagePrefix === "Found" || messagePrefix === "Loaded" || messagePrefix === "Displaying") {
-            statusMessage.textContent = 'No media files found. Select a directory to scan.';
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        if (!searchTerm) { // Only set these if not overridden by search-specific "no results" messages
+            if (isMemoView) {
+                statusMessage.textContent = 'No memos found. Create some by viewing media!';
+            } else if (showingOnlyHistory) {
+                statusMessage.textContent = 'No items in history. View some media to populate history.';
+            } else if (showingOnlyFavorites) {
+                statusMessage.textContent = 'No favorite items found. Click "Show All" to see all media or mark some items as favorites.';
+            } else if (messagePrefix === "Found" || messagePrefix === "Loaded" || messagePrefix === "Displaying") {
+                statusMessage.textContent = 'No media files found. Select a directory to scan.';
+            } else {
+                statusMessage.textContent = 'Select a directory to view media.';
+            }
+        }
+        // If searchTerm is active and led to empty filesToDisplay, renderMediaGrid should have set the message.
+        return;
+    }
+
+    // If there are items, but statusMessage was set to a "no items matching search" type message by renderMediaGrid,
+    // we might want to update it here. Or, ensure renderMediaGrid's search message is final.
+    // For now, let's assume renderMediaGrid's message is fine if search led to empty.
+    // If search did NOT lead to empty, then we construct the normal message:
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    if (!searchTerm || (searchTerm && filesToDisplay.length > 0)) {
+        let currentViewMessage = `${messagePrefix} ${filesToDisplay.length} ${isMemoView ? 'memo(s)' : 'media items'}.`;
+        if (showingOnlyFavorites) {
+            currentViewMessage += ' (Showing Favorites)';
+        } else if (showingOnlyHistory) {
+            currentViewMessage += ' (Showing History - Most Recent First)';
+        } else if (isMemoView) {
+            currentViewMessage += ` (Showing Memos - Sorted by ${currentMemoSort === 'mtime_desc' ? 'Newest' : 'Oldest'})`;
+        }
+        if (searchTerm) {
+            currentViewMessage += ` (Search: "${searchTerm}")`;
+        }
+        statusMessage.textContent = currentViewMessage;
+    }
+    // If searchTerm is active and filesToDisplay is empty, statusMessage is already set by renderMediaGrid.
+
+
+    filesToDisplay.forEach((file, index) => { // Added index for unique ID generation if needed later
+        try {
+            // 'file' can be a media file object or a memo object if isMemoView is true
+            const isMemo = isMemoView; // Clarity for the 'file' object
+            const itemData = isMemo ? file : file; // In this case, file is the memoObject or mediaFileObject
+
+            if (!itemData || (!isMemo && typeof itemData.filePath !== 'string')) {
+                console.error('Skipping invalid file object during grid population:', itemData);
+                return;
+            }
+            if (isMemo && (!itemData.memoFileName || !itemData.mediaFileBaseName)) {
+                 console.error('Skipping invalid memo object during grid population:', itemData);
+                return;
+            }
+
+            const displayFileName = isMemo ?
+                                  (itemData.mediaFileBaseName || itemData.memoFileName) :
+                                  (itemData.filePath.split(/\/|\\/).pop() || 'Unnamed File');
+
+            const item = document.createElement('div');
+            item.classList.add('media-item'); // Use same class for now, can differentiate later
+            if (isMemo) {
+                item.classList.add('memo-list-item'); // Specific class for memo items
+            }
+
+            // For memos, data-filepath might be the memo's own path or the media's path.
+            // Let's use mediaFilePath if available, for consistency in potential interactions.
+            item.setAttribute('data-filepath', isMemo ? (itemData.mediaFilePath || itemData.memoFileName) : itemData.filePath);
+            if (!isMemo) {
+                item.setAttribute('data-filetype', itemData.fileType);
+            } else {
+                item.setAttribute('data-filetype', itemData.fileType || 'memo'); // Indicate it's a memo or its associated media type
+            }
+
+
+            const img = document.createElement('img');
+            // For memos, use a combination of memoFileName and mediaFileBaseName for a more unique ID if filePath is null
+            const uniqueImgIdBase = isMemo ? (itemData.mediaFilePath || itemData.memoFileName) : itemData.filePath;
+            const uniqueImgId = `thumb-img-${uniqueImgIdBase}-${Date.now()}`;
+            img.id = uniqueImgId;
+
+            if (itemData.thumbnailPath) {
+                img.src = `file://${itemData.thumbnailPath}`;
+                img.alt = displayFileName;
+            } else if (!isMemo) { // Standard media file missing thumbnail
+                img.classList.add('thumbnail-loading');
+                img.alt = "Loading thumbnail...";
+                // On-demand thumbnail request for standard media files
+                (async () => {
+                    try {
+                        if (!window.electronAPI) {
+                            console.error("electronAPI not found for on-demand thumbnail for file:", itemData.filePath);
+                            img.alt = "API Error";
+                            img.classList.remove('thumbnail-loading');
+                            img.classList.add('thumbnail-error');
+                            return;
+                        }
+                        window.electronAPI.send('request-thumbnail', {
+                            filePath: itemData.filePath,
+                            fileType: itemData.fileType,
+                            imgIdForRenderer: uniqueImgId
+                        });
+                    } catch (error) {
+                        console.error('Error in on-demand thumbnail IIFE (before send or setup) for', itemData.filePath, error);
+                        const imgToUpdateOnError = document.getElementById(uniqueImgId);
+                        if (imgToUpdateOnError) {
+                            const parent = imgToUpdateOnError.parentElement;
+                            if (parent) {
+                               const existingMsg = parent.querySelector('.thumbnail-message-overlay');
+                               if (existingMsg) existingMsg.remove();
+                            }
+                            imgToUpdateOnError.classList.remove('thumbnail-loading');
+                            imgToUpdateOnError.classList.add('thumbnail-error');
+                            imgToUpdateOnError.alt = "Error triggering thumbnail load";
+                        }
+                    }
+                })();
+            } else { // Memo item without a thumbnail (e.g. associated media file not found or also lacks thumb)
+                 img.classList.add('thumbnail-placeholder'); // A new class for styling memo placeholders
+                 img.alt = `Memo: ${displayFileName} (No Preview Available)`;
+                 // TODO: Consider a default SVG or icon for memo items without thumbnails
+            }
+
+            img.onerror = function() {
+                if (!this.classList.contains('thumbnail-error') && !this.classList.contains('thumbnail-loading')) {
+                    console.error(`Error loading image src: ${this.src}`);
+                    this.classList.add('thumbnail-error');
+                    this.alt = 'Failed to load image';
+                    const parent = this.parentElement;
+                    if (parent) {
+                        const existingMsg = parent.querySelector('.thumbnail-message-overlay');
+                        if (existingMsg) existingMsg.remove();
+                    }
+                }
+            };
+            item.appendChild(img);
+
+            const filenamePara = document.createElement('p');
+            filenamePara.textContent = displayFileName;
+            item.appendChild(filenamePara);
+
+            if (isMemo) {
+                const datePara = document.createElement('p');
+                datePara.classList.add('memo-item-date');
+                datePara.textContent = `Modified: ${new Date(itemData.lastModifiedDate).toLocaleDateString()} ${new Date(itemData.lastModifiedDate).toLocaleTimeString()}`;
+                item.appendChild(datePara);
+
+                item.addEventListener('click', () => {
+                    if (itemData.mediaFilePath && itemData.fileType) {
+                        window.electronAPI.send('open-media', {
+                            filePath: itemData.mediaFilePath,
+                            fileType: itemData.fileType,
+                        });
+                    } else {
+                        console.warn('[MEMO LIST CLICK] Cannot open media, path or type missing for memo:', itemData);
+                        alert('Associated media file not found or type is unknown. Cannot open.');
+                    }
+                });
+                // No favorite button for memo list items
+            } else {
+                // Existing logic for media items (favorite button, click to open media)
+                const favButton = document.createElement('button');
+                favButton.classList.add('favorite-btn');
+                favButton.innerHTML = itemData.isFavorite ? '★' : '☆';
+                favButton.setAttribute('aria-label', itemData.isFavorite ? 'Unmark as favorite' : 'Mark as favorite');
+                favButton.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const filePath = itemData.filePath;
+                    try {
+                        const newIsFavorite = await window.electronAPI.invoke('toggle-favorite', filePath);
+                        favButton.innerHTML = newIsFavorite ? '★' : '☆';
+                        favButton.setAttribute('aria-label', newIsFavorite ? 'Unmark as favorite' : 'Mark as favorite');
+                        const masterListItem = currentAllMediaItems.find(m => m.filePath === filePath);
+                        if (masterListItem) masterListItem.isFavorite = newIsFavorite;
+                        itemData.isFavorite = newIsFavorite;
+                        if (showingOnlyFavorites && !newIsFavorite) {
+                            renderMediaGrid();
+                        }
+                    } catch (error) {
+                        console.error('Error toggling favorite:', error);
+                    }
+                });
+                item.appendChild(favButton);
+
+                item.addEventListener('click', () => {
+                    if (itemData && itemData.filePath && itemData.fileType) {
+                        console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
+                        window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
+                    } else {
+                        console.error('Cannot open media: file data is incomplete.', itemData);
+                    }
+                });
+            }
+            mediaGrid.appendChild(item);
+
+        } catch (error) {
+            console.error('Error processing item for grid display:', file, error);
+        }
+    });
+}
         } else {
             statusMessage.textContent = 'Select a directory to view media.';
         }
@@ -58,148 +256,6 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found") {
     }
 
     let currentViewMessage = `${messagePrefix} ${filesToDisplay.length} media items.`;
-    if (showingOnlyFavorites) {
-        currentViewMessage += ' (Showing Favorites)';
-    } else if (showingOnlyHistory) {
-        currentViewMessage += ' (Showing History - Most Recent First)';
-    }
-    statusMessage.textContent = currentViewMessage;
-
-
-    filesToDisplay.forEach((file, index) => { // Added index for unique ID generation if needed later
-        try { // Start of try block for each file item
-            if (!file || typeof file.filePath !== 'string') {
-                console.error('Skipping invalid file object during grid population:', file);
-                return; // Skip this iteration
-            }
-
-            const displayFileName = file.filePath.split(/\/|\\/).pop() || 'Unnamed File';
-
-            const item = document.createElement('div');
-            item.classList.add('media-item');
-            item.setAttribute('data-filepath', file.filePath);
-            item.setAttribute('data-filetype', file.fileType);
-
-            const favButton = document.createElement('button');
-        favButton.classList.add('favorite-btn');
-        favButton.innerHTML = file.isFavorite ? '★' : '☆'; // Filled star if favorite, outline if not
-        favButton.setAttribute('aria-label', file.isFavorite ? 'Unmark as favorite' : 'Mark as favorite');
-
-        favButton.addEventListener('click', async (e) => {
-            e.stopPropagation(); // Prevent triggering media item click
-            const filePath = file.filePath; // Ensure filePath is captured correctly
-            console.log(`Toggling favorite for: ${filePath}`);
-            try {
-                const newIsFavorite = await window.electronAPI.invoke('toggle-favorite', filePath);
-                favButton.innerHTML = newIsFavorite ? '★' : '☆';
-                favButton.setAttribute('aria-label', newIsFavorite ? 'Unmark as favorite' : 'Mark as favorite');
-
-                // Update the status in the master list
-                const masterListItem = currentAllMediaItems.find(item => item.filePath === filePath);
-                if (masterListItem) {
-                    masterListItem.isFavorite = newIsFavorite;
-                }
-                file.isFavorite = newIsFavorite; // Also update the item in the potentially filtered list
-
-                console.log(`New favorite status for ${filePath}: ${newIsFavorite}`);
-
-                // If showing only favorites and an item is un-favorited, re-render the grid
-                if (showingOnlyFavorites && !newIsFavorite) {
-                    renderMediaGrid();
-                }
-            } catch (error) {
-                console.error('Error toggling favorite:', error);
-            }
-        });
-        item.appendChild(favButton);
-
-        const img = document.createElement('img');
-        // Use index from forEach for a unique ID. filesToDisplay is the array being iterated.
-        const uniqueImgId = `thumb-img-${filesToDisplay.indexOf(file)}-${Date.now()}`; // Add timestamp for more uniqueness if list re-renders fast
-        img.id = uniqueImgId;
-
-        if (file.thumbnailPath) {
-            img.src = `file://${file.thumbnailPath}`; // Assuming thumbnailPath is already a full, valid path
-            img.alt = displayFileName;
-        } else {
-            img.classList.add('thumbnail-loading');
-            img.alt = "Loading thumbnail...";
-
-            (async () => {
-                try {
-                    if (!window.electronAPI) {
-                        console.error("electronAPI not found for on-demand thumbnail for file:", file.filePath);
-                        // Still throw error or handle, as this is a prerequisite fail
-                        img.alt = "API Error"; // Update alt on current img
-                        img.classList.remove('thumbnail-loading');
-                        img.classList.add('thumbnail-error');
-                        return; // Exit the IIFE
-                    }
-                    // Send request to main process for thumbnail generation
-                    window.electronAPI.send('request-thumbnail', {
-                        filePath: file.filePath,
-                        fileType: file.fileType,
-                        imgIdForRenderer: uniqueImgId
-                    });
-                    // The response will be handled by a separate 'thumbnail-generated' IPC listener.
-                    // The existing try-catch in this IIFE was for the invoke promise.
-                    // Errors from generation will be part of the 'thumbnail-generated' payload.
-                    // We can keep the try-catch if other synchronous errors within the IIFE are possible,
-                    // but it won't catch issues from the asynchronous 'send' operation or subsequent generation.
-                    // For now, the direct response handling is removed.
-                } catch (error) { // This catch is now mainly for errors setting up the send or if electronAPI was initially missing.
-                    console.error('Error in on-demand thumbnail IIFE (before send or setup) for', file.filePath, error);
-                    const imgToUpdateOnError = document.getElementById(uniqueImgId);
-                    if (imgToUpdateOnError) {
-                        const parent = imgToUpdateOnError.parentElement;
-                        if (parent) {
-                           const existingMsg = parent.querySelector('.thumbnail-message-overlay');
-                           if (existingMsg) existingMsg.remove();
-                        }
-                        imgToUpdateOnError.classList.remove('thumbnail-loading');
-                        imgToUpdateOnError.classList.add('thumbnail-error');
-                        imgToUpdateOnError.alt = "Error triggering thumbnail load";
-                    }
-                }
-            })();
-        }
-
-        img.onerror = function() {
-            if (!this.classList.contains('thumbnail-error') && !this.classList.contains('thumbnail-loading')) {
-                console.error(`Error loading image src: ${this.src}`); // this.src might be empty if it never loaded
-                this.classList.add('thumbnail-error');
-                this.alt = 'Failed to load image';
-                // Remove any potential message overlay if a generic load error occurs after attempting to set src
-                const parent = this.parentElement;
-                if (parent) {
-                    const existingMsg = parent.querySelector('.thumbnail-message-overlay');
-                    if (existingMsg) existingMsg.remove();
-                }
-            }
-        };
-
-        const filenamePara = document.createElement('p');
-        filenamePara.textContent = displayFileName;
-
-        item.appendChild(img);
-        item.appendChild(filenamePara); // Use renamed variable
-
-        item.addEventListener('click', () => {
-            if (file && file.filePath && file.fileType) { // Guard access to file properties
-                console.log(`Requesting to open media: ${file.fileType} - ${file.filePath}`);
-                window.electronAPI.send('open-media', { filePath: file.filePath, fileType: file.fileType });
-            } else {
-                console.error('Cannot open media: file data is incomplete.', file);
-            }
-        });
-        mediaGrid.appendChild(item);
-
-        } catch (error) { // End of try block for each file item
-            console.error('Error processing media item for grid display:', file, error);
-            // Optionally, append an error placeholder item to the grid or just skip.
-        }
-    });
-}
 
 // REMOVING THIS DUPLICATE/OLD selectDirBtn listener. The more complete one will be in DOMContentLoaded.
 
@@ -210,6 +266,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
     let messagePrefix = "Loaded";
 
     if (showingOnlyHistory) {
+        if (memoSortControls) memoSortControls.style.display = 'none'; // Hide memo sort
         if (window.electronAPI) {
             try {
                 console.log('Requesting history items...');
@@ -217,31 +274,67 @@ async function renderMediaGrid() { // Made async to handle potential await for h
                 messagePrefix = "Displaying";
             } catch (error) {
                 console.error('Error fetching history items:', error);
-                statusMessage.textContent = 'Error loading history.';
+                if (statusMessage) statusMessage.textContent = 'Error loading history.';
                 itemsToDisplay = []; // Show empty on error
             }
         } else {
             itemsToDisplay = []; // Should not happen if API is available
         }
     } else if (showingOnlyFavorites) {
+        if (memoSortControls) memoSortControls.style.display = 'none'; // Hide memo sort
         itemsToDisplay = currentAllMediaItems.filter(file => file.isFavorite);
         messagePrefix = "Displaying";
-    }
+    } else if (showingOnlyMemos) {
+        if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
+        messagePrefix = "Displaying";
+        try {
+            console.log('[MEMO LIST RENDER] Fetching memos list...');
+            let memos = await window.electronAPI.invoke('get-memos-list');
+            console.log(`[MEMO LIST RENDER] Received ${memos.length} memos.`);
 
-    if (searchTerm) { // Only filter if searchTerm is not empty
-        itemsToDisplay = itemsToDisplay.filter(file => {
-            if (file && typeof file.filePath === 'string') {
-                const filename = file.filePath.split(/\/|\\/).pop().toLowerCase();
-                return filename.includes(searchTerm);
+            if (currentMemoSort === 'mtime_asc') {
+                memos.sort((a, b) => new Date(a.lastModifiedDate) - new Date(b.lastModifiedDate));
+            } else { // Default 'mtime_desc'
+                memos.sort((a, b) => new Date(b.lastModifiedDate) - new Date(a.lastModifiedDate));
             }
-            return false;
-        });
-        // Note: populateMediaGrid will handle the "No media files found" message
-        // if itemsToDisplay becomes empty after filtering.
-        // If a custom message for "no search results" is desired, messagePrefix could be updated here.
+
+            itemsToDisplay = memos;
+            // Status message will be handled by populateMediaGrid or updated below if search is active
+        } catch (e) {
+            console.error('[MEMO LIST RENDER] Error fetching or sorting memos:', e);
+            if (statusMessage) statusMessage.textContent = 'Error loading memos.';
+            itemsToDisplay = [];
+        }
+    } else { // Default: Show all media
+        if (memoSortControls) memoSortControls.style.display = 'none'; // Hide memo sort
+        itemsToDisplay = currentAllMediaItems; // Ensure it's the full list for "Show All"
+        messagePrefix = "Loaded";
     }
 
-    populateMediaGrid(itemsToDisplay, messagePrefix);
+    if (searchTerm) {
+        itemsToDisplay = itemsToDisplay.filter(item => {
+            if (!item) return false;
+            let searchableText = '';
+            if (showingOnlyMemos) {
+                // For memos, search in mediaFileBaseName (if available) or memoFileName
+                searchableText = (item.mediaFileBaseName || item.memoFileName || '').toLowerCase();
+            } else if (item.filePath) {
+                searchableText = item.filePath.split(/\/|\\/).pop().toLowerCase();
+            }
+            return searchableText.includes(searchTerm);
+        });
+
+        if (itemsToDisplay.length === 0) {
+            let baseViewName = "results"; // Generic term if no specific view is active (should not happen with current logic)
+            if (showingOnlyFavorites) baseViewName = "favorites";
+            else if (showingOnlyHistory) baseViewName = "history";
+            else if (showingOnlyMemos) baseViewName = "memos";
+            else baseViewName = "media library"; // When "Show All" is active
+            if (statusMessage) statusMessage.textContent = `No items in ${baseViewName} matching "${searchTerm}".`;
+        }
+    }
+
+    populateMediaGrid(itemsToDisplay, messagePrefix, showingOnlyMemos);
 }
 
 // REMOVING TOP-LEVEL EVENT LISTENERS FOR toggleFavoritesViewBtn and toggleHistoryViewBtn - THEY WILL BE MOVED INTO DOMContentLoaded
@@ -327,6 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundColorPicker = document.getElementById('background-color-picker');
     appTitleHeader = document.getElementById('app-title-header');
     searchInput = document.getElementById('search-input');
+    const toggleMemoListViewBtn = document.getElementById('toggle-memo-list-view-btn');
+    const memoSortControls = document.getElementById('memo-sort-controls');
+    const memoSortSelect = document.getElementById('memo-sort-select');
 
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
@@ -440,6 +536,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         console.warn("Search input field not found.");
+    }
+
+    // Event Listener for toggleMemoListViewBtn
+    if (toggleMemoListViewBtn) {
+        toggleMemoListViewBtn.addEventListener('click', () => {
+            showingOnlyMemos = !showingOnlyMemos;
+            if (showingOnlyMemos) {
+                showingOnlyFavorites = false; // Deactivate other views
+                showingOnlyHistory = false;
+                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
+                toggleMemoListViewBtn.textContent = 'Show All Media';
+                if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
+            } else {
+                toggleMemoListViewBtn.textContent = 'Show Memos';
+                if (memoSortControls) memoSortControls.style.display = 'none';
+            }
+            renderMediaGrid();
+        });
+    } else {
+        console.warn("Toggle Memo List View button not found.");
+    }
+
+    // Event Listener for memoSortSelect
+    if (memoSortSelect) {
+        memoSortSelect.addEventListener('change', (event) => {
+            currentMemoSort = event.target.value;
+            if (showingOnlyMemos) { // Only re-render if memo view is active
+                renderMediaGrid();
+            }
+        });
+    } else {
+        console.warn("Memo sort select element not found.");
     }
 
     // Modal event listeners (already here, but ensure elements are assigned first)

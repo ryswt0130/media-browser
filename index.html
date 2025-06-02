@@ -30,10 +30,19 @@
         <aside id="sidebar">
             <button id="toggle-favorites-view">Show Favorites</button>
             <button id="toggle-history-view">Show History</button>
+            <button id="toggle-memo-list-view-btn">Show Memos</button>
         </aside>
         <main id="main-grid-area">
             <div id="status-message">
                 <p>Select a directory to view media.</p>
+            </div>
+            <div id="memo-sort-controls">
+                <label for="memo-sort-select">Sort by:</label>
+                <select id="memo-sort-select">
+                    <option value="mtime_desc">Modified (Newest First)</option>
+                    <option value="mtime_asc">Modified (Oldest First)</option>
+                    <!-- Add other sort options later if needed, e.g., by media name -->
+                </select>
             </div>
             <div id="media-grid">
                 <!-- Thumbnails will be loaded here -->

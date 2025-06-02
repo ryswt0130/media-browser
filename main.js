@@ -136,6 +136,50 @@ async function saveMemo(mediaFilePath, content) {
     }
 }
 
+async function getMemosList() {
+    if (!fs.existsSync(MEMOS_DIR)) {
+        console.log('[MEMO LIST] Memos directory does not exist.');
+        return [];
+    }
+
+    try {
+        const memoMdFiles = fs.readdirSync(MEMOS_DIR).filter(file => file.endsWith('.md'));
+        const memoList = [];
+
+        for (const memoMdFile of memoMdFiles) {
+            const memoFilePath = path.join(MEMOS_DIR, memoMdFile);
+            let stats;
+            try {
+                stats = fs.statSync(memoFilePath);
+            } catch (e) {
+                console.error(`[MEMO LIST] Failed to get stats for ${memoFilePath}:`, e);
+                continue; // Skip this file
+            }
+
+            const mediaFileBaseName = path.parse(memoMdFile).name; // e.g., "myvideo" from "myvideo.md"
+
+            // Find corresponding media file in allScannedMediaFiles
+            const associatedMediaFile = allScannedMediaFiles.find(
+                media => path.parse(media.filePath).name === mediaFileBaseName
+            );
+
+            memoList.push({
+                memoFileName: memoMdFile, // Full name like "myvideo.md"
+                mediaFileBaseName: mediaFileBaseName, // Base name like "myvideo"
+                mediaFilePath: associatedMediaFile ? associatedMediaFile.filePath : null,
+                fileType: associatedMediaFile ? associatedMediaFile.fileType : null,
+                thumbnailPath: associatedMediaFile ? associatedMediaFile.thumbnailPath : null,
+                lastModifiedDate: stats.mtime // JavaScript Date object for sorting
+            });
+        }
+        console.log(`[MEMO LIST] Found ${memoList.length} memos.`);
+        return memoList;
+    } catch (e) {
+        console.error('[MEMO LIST] Error reading memos directory:', e);
+        return [];
+    }
+}
+
 const APP_NAME = appPackage.productName || "My Media Browser";
 const HISTORY_LIMIT = 100; // Max number of history items to store
 let allScannedMediaFiles = []; // To store all scanned media files with their details
@@ -712,6 +756,15 @@ ipcMain.handle('save-memo', async (event, { mediaFilePath, content }) => {
     } catch (e) {
         console.error(`[IPC save-memo] Error saving memo for ${mediaFilePath}:`, e);
         return { success: false, error: e.message || 'Failed to save memo.' };
+    }
+});
+
+ipcMain.handle('get-memos-list', async () => {
+    try {
+        return await getMemosList();
+    } catch (e) {
+        console.error('[IPC get-memos-list] Error calling getMemosList:', e);
+        return []; // Return empty list or an error structure
     }
 });
 
