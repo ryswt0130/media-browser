@@ -9,8 +9,9 @@ const { generateThumbnail, THUMBNAILS_DIR, generateExpectedThumbnailFilename } =
 // --- 開発時のみリロードを有効化 ---
 if (process.env.NODE_ENV !== 'production') {
   try {
+    const electronPath = require('electron'); // Get the path to electron
     require('electron-reload')(__dirname, {
-      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
+      electron: electronPath, // Use the resolved path
       hardResetMethod: 'exit' // Recommended for main process changes
     });
   } catch (e) {
