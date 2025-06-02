@@ -336,7 +336,7 @@ body {
     overflow: hidden;
     width: 100%; /* Take full width of player-with-title-area */
     /* Height determined by its content (media element) */
-    flex-grow: 1; /* Takes available space within #player-with-title-area, before title */
+    /* flex-grow: 1; Removed to allow natural sizing */
     flex-shrink: 1; /* Allow it to shrink */
     min-height: 0; /* Allows it to shrink if content is smaller */
 }
