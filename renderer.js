@@ -418,11 +418,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
 
-    // Set initial text for toggle buttons (depends on toggleFavoritesViewBtn, toggleHistoryViewBtn)
-    if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? '全メディア表示' : 'お気に入り表示';
-    if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? '全メディア表示' : '履歴表示';
-    if(toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = showingOnlyMemos ? '全メディア表示' : 'メモ表示';
-
     // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
         const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -497,12 +492,14 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleFavoritesViewBtn.addEventListener('click', () => {
             showingOnlyFavorites = !showingOnlyFavorites;
             if (showingOnlyFavorites) {
+                toggleFavoritesViewBtn.classList.add('sidebar-btn-active');
+                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
+                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
                 showingOnlyHistory = false;
-                showingOnlyMemos = false; // Ensure other views are reset
-                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = '履歴表示';
-                if (toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = 'メモ表示';
+                showingOnlyMemos = false;
+            } else {
+                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
             }
-            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? '全メディア表示' : 'お気に入り表示';
             renderMediaGrid();
         });
     } else {
@@ -513,12 +510,14 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleHistoryViewBtn.addEventListener('click', async () => {
             showingOnlyHistory = !showingOnlyHistory;
             if (showingOnlyHistory) {
+                toggleHistoryViewBtn.classList.add('sidebar-btn-active');
+                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
+                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
                 showingOnlyFavorites = false;
-                showingOnlyMemos = false; // Ensure other views are reset
-                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'お気に入り表示';
-                if (toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = 'メモ表示';
+                showingOnlyMemos = false;
+            } else {
+                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
             }
-            toggleHistoryViewBtn.textContent = showingOnlyHistory ? '全メディア表示' : '履歴表示';
             await renderMediaGrid();
         });
     } else {
@@ -539,14 +538,14 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleMemoListViewBtn.addEventListener('click', () => {
             showingOnlyMemos = !showingOnlyMemos;
             if (showingOnlyMemos) {
-                showingOnlyFavorites = false; // Deactivate other views
+                toggleMemoListViewBtn.classList.add('sidebar-btn-active');
+                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
+                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
+                showingOnlyFavorites = false;
                 showingOnlyHistory = false;
-                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'お気に入り表示';
-                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = '履歴表示';
-                toggleMemoListViewBtn.textContent = '全メディア表示';
-                if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
+                if (memoSortControls) memoSortControls.style.display = 'block';
             } else {
-                toggleMemoListViewBtn.textContent = 'メモ表示';
+                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
                 if (memoSortControls) memoSortControls.style.display = 'none';
             }
             renderMediaGrid();

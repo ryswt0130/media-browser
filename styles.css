@@ -111,12 +111,14 @@ body {
 }
 
 #sidebar button { /* Style for buttons within the sidebar */
-    display: block;
+    display: flex; /* Changed from block to flex */
+    align-items: center; /* Added to vertically align icon and text */
+    gap: 6px; /* Added for spacing between icon and text */
     width: 100%;
-    padding: 12px 15px;
+    padding: 3px 12px; /* Changed padding */
     margin-bottom: 10px;
-    text-align: left;
-    font-size: 1em; /* Consistent font size */
+    text-align: left; /* Remains, though flex alignment might override some aspects */
+    font-size: 1em;
     border: none;
     border-radius: 4px;
     color: #ecf0f1;
@@ -127,6 +129,20 @@ body {
 
 #sidebar button:hover {
     background-color: #3c5a88; /* Darker on hover */
+}
+
+#sidebar button.sidebar-btn-active {
+    background-color: #3c5a88; /* Using existing hover color for active state */
+    /* font-weight: bold; /* Optional: makes active text bolder */
+}
+
+.icon {
+    /* Example: margin-right: 5px; if not using gap on button */
+    /* No general styling strictly needed if color comes from .yellow-star or text color */
+}
+
+.yellow-star {
+    color: #ffd700; /* Gold color */
 }
 
 /* Main Grid Area (Status Message + Media Grid) */
