@@ -449,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hours = Math.floor(time / 3600);
                 const minutes = Math.floor((time % 3600) / 60);
                 const seconds = Math.floor(time % 60);
-                const timestamp = `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}] - `;
+                const timestamp = `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}]\n`;
                 
                 const start = memoTextArea.selectionStart;
                 const end = memoTextArea.selectionEnd;
