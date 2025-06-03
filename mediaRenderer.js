@@ -1,3 +1,102 @@
+// Helper function to convert hex color to RGB
+function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') {
+        return null; // Or a default like { r: 0, g: 0, b: 0 }
+    }
+    // Remove leading #
+    hex = hex.startsWith('#') ? hex.slice(1) : hex;
+
+    // Handle shorthand hex (e.g., "03F")
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+    }
+
+    if (hex.length !== 6) {
+        console.warn("Invalid hex color format for hexToRgb:", hex);
+        return null; // Or a default
+    }
+
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {
+        console.warn("Error parsing hex to RGB components:", hex);
+        return null; // Or a default
+    }
+    return { r, g, b };
+}
+
+// Helper function to calculate luminance
+function calculateLuminance(rgb) {
+    if (!rgb || typeof rgb.r !== 'number' || typeof rgb.g !== 'number' || typeof rgb.b !== 'number') {
+        return 0; // Default to dark if input is invalid
+    }
+    // Formula: L = 0.299*R + 0.587*G + 0.114*B
+    return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+}
+
+// Assume hexToRgb, calculateLuminance are defined above.
+// Assume mediaTitleDisplay is accessible (e.g., defined in DOMContentLoaded and this function is also called from there, or mediaTitleDisplay is passed as param).
+
+function updateTitleColorBasedOnBackground() {
+    // Ensure mediaTitleDisplay is available. It's typically assigned in DOMContentLoaded.
+    // If mediaTitleDisplay is not globally scoped for mediaRenderer.js, this function might need
+    // to be defined inside DOMContentLoaded or take mediaTitleDisplay as an argument.
+    // For this subtask, we'll assume it can be accessed.
+    const titleElement = document.getElementById('media-title-display'); // Or use existing mediaTitleDisplay variable
+    if (!titleElement) {
+        console.warn("Media title display element not found for color update.");
+        return;
+    }
+
+    // Get the computed background color of the body
+    const bodyBackgroundColor = window.getComputedStyle(document.body).backgroundColor;
+    // getComputedStyle returns colors in rgb(R, G, B) or rgba(R, G, B, A) format.
+
+    let rgb;
+    const rgbMatch = bodyBackgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+    if (rgbMatch) {
+        rgb = {
+            r: parseInt(rgbMatch[1], 10),
+            g: parseInt(rgbMatch[2], 10),
+            b: parseInt(rgbMatch[3], 10)
+        };
+    } else {
+        // Fallback if color is not in rgb/rgba (e.g. named color, though unlikely for computed style of body bg)
+        // Or if it's 'transparent'. For transparent, we can't determine a contrasting color well.
+        // Defaulting to a light title color might be best or trying to parse it as hex if it is one.
+        // For now, if not parsable as RGB, try to see if it's a hex that needs conversion from localStorage
+        // This path is less likely for computed style of body.
+        console.warn("Could not parse body background color directly as RGB:", bodyBackgroundColor);
+        // Attempt to use the stored hex color as a fallback path if direct RGB parsing fails
+        const storedHexColor = localStorage.getItem('appBackgroundColor'); // BACKGROUND_COLOR_STORAGE_KEY
+        if (storedHexColor) {
+            rgb = hexToRgb(storedHexColor);
+        } else {
+            // If no stored hex and not parsable, default to assuming dark background
+             titleElement.style.color = ''; // Revert to CSS default (assumed light)
+             return;
+        }
+    }
+
+    if (!rgb) { // If hexToRgb also failed or no stored color
+        console.warn("Failed to get valid RGB for background color.");
+        titleElement.style.color = ''; // Revert to CSS default
+        return;
+    }
+
+    const luminance = calculateLuminance(rgb);
+    const LUMINANCE_THRESHOLD = 204;
+
+    if (luminance >= LUMINANCE_THRESHOLD) { // If background is light
+        titleElement.style.color = '#000000'; // Set title to black
+    } else { // If background is dark
+        titleElement.style.color = ''; // Revert to CSS default (e.g., #e0e0e0)
+    }
+    // console.log(`Background luminance: ${luminance.toFixed(2)}, Title color set to: ${titleElement.style.color || 'default'}`);
+}
+
 function escapeHTML(text) {
     if (typeof text !== 'string') {
         return text;
@@ -106,7 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Apply initial background color
     const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
-    applyMediaPageBackgroundColor(savedColor || DEFAULT_BACKGROUND_COLOR);
+    applyMediaPageBackgroundColor(savedColor || DEFAULT_BACKGROUND_COLOR); // Applies initial background
+    updateTitleColorBasedOnBackground(); // Add this call here
 
 
     function updateFavoriteButtonVisual() {
@@ -423,6 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.electronAPI.on('apply-background-color', (newColor) => {
             console.log(`Applying background color from IPC: ${newColor}`);
             applyMediaPageBackgroundColor(newColor);
+            updateTitleColorBasedOnBackground(); // Add this call here
         });
     }
 
