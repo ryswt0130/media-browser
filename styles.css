@@ -491,7 +491,7 @@ body {
 
 #memo-display-area { /* For displaying all saved memo content */
     padding: 8px;
-    background-color: #252526; 
+    background-color: #252526;
     border-radius: 4px;
     white-space: pre-wrap; 
     min-height: 80px; 
@@ -509,13 +509,23 @@ body {
     color: #21a1c1; /* Darker or different color on hover */
 }
 
+/* Existing .memo-entry and .delete-memo-entry-btn styles might need minor tweaks,
+   but the main additions are for the actions container and the new buttons.
+   Assuming .delete-memo-entry-btn is already styled as a small 'X' button.
+   If .delete-memo-entry-btn was previously absolutely positioned, that will need to change,
+   as it's now part of a flex container (.memo-entry-actions).
+*/
+
 .memo-entry {
-    position: relative; /* For positioning the delete button */
+    position: relative; /* Still useful if actions are sometimes positioned relative to entry, but not essential for buttons in a row */
     padding: 10px;
     margin-bottom: 10px;
-    border: 1px solid #4a4a4a; /* A slightly different border to distinguish entries */
+    border: 1px solid #4a4a4a;
     border-radius: 4px;
-    background-color: #2f2f2f; /* Slightly different from #memo-display-area's bg if needed, or same */
+    background-color: #2f2f2f;
+    display: flex; /* Make .memo-entry a flex container */
+    justify-content: space-between; /* Push content and actions apart */
+    align-items: flex-start; /* Align items to the top */
 }
 
 .memo-entry:last-child {
@@ -523,35 +533,67 @@ body {
 }
 
 .memo-entry-content {
-    /* If you need specific styling for the content part of the entry,
-       like controlling its line breaks or spacing before the delete button.
-       For now, it will inherit text color and wrap normally.
-       Make sure it allows for the delete button to be positioned without overlap.
-    */
-    padding-right: 25px; /* Ensure space for the delete button if positioned absolutely inside */
+    flex-grow: 1; /* Allow content to take available space */
+    /* padding-right: 0; Remove previous padding-right if delete button is no longer absolute *inside* content area */
 }
 
+.memo-entry-actions {
+    display: flex;
+    align-items: center; /* Align buttons vertically */
+    gap: 5px; /* Space between buttons */
+    flex-shrink: 0; /* Prevent actions container from shrinking */
+    margin-left: 10px; /* Space between content and action buttons */
+}
+
+/* Original .delete-memo-entry-btn styling might need to be un-nested from absolute positioning */
 .delete-memo-entry-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
+    /* If previously absolute, remove: position, top, right */
+    /* Basic styling for 'X' button if not already present or needs adjustment */
     background-color: #555;
     color: #ccc;
     border: 1px solid #666;
-    border-radius: 50%; /* Make it circular */
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    border-radius: 4px; /* Can be square or circular */
+    width: 24px; /* Adjust size as needed */
+    height: 24px;
+    font-size: 14px;
     font-weight: bold;
-    line-height: 18px; /* Adjust for vertical centering of 'X' */
+    line-height: 22px; /* Adjust for vertical centering */
     text-align: center;
     cursor: pointer;
-    padding: 0; /* Remove default padding */
+    padding: 0;
 }
-
 .delete-memo-entry-btn:hover {
     background-color: #777;
     color: #fff;
+}
+
+.confirm-delete-btn,
+.cancel-delete-btn {
+    padding: 3px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent; /* Base border */
+}
+
+.confirm-delete-btn {
+    background-color: #d9534f; /* Red */
+    color: white;
+    border-color: #d43f3a;
+}
+.confirm-delete-btn:hover {
+    background-color: #c9302c;
+    border-color: #ac2925;
+}
+
+.cancel-delete-btn {
+    background-color: #777; /* Gray */
+    color: white;
+    border-color: #666;
+}
+.cancel-delete-btn:hover {
+    background-color: #5a5a5a;
+    border-color: #505050;
 }
 
 #save-memo-btn:hover,

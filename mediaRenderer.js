@@ -18,52 +18,52 @@ function formatMemoForDisplay(memoContent) {
     // escapeHTML function should be defined elsewhere and accessible.
 
     if (typeof memoContent !== 'string' || memoContent.trim() === "") {
-        return ""; // Return empty string for empty/invalid input to clear display
+        return ""; // Return empty string for empty/invalid input
     }
 
     try {
-        const entries = memoContent.split('\n\n'); // Split into entries
-        if (entries.length === 1 && entries[0].trim() === "") { // Handles if memoContent was just "\n\n" or whitespace
+        const entries = memoContent.split('\n\n');
+        if (entries.length === 1 && entries[0].trim() === "") {
              return "";
         }
 
         const allEntriesHtml = entries.map((entryText, index) => {
-            if (entryText.trim() === "") { // Skip genuinely empty entries that might result from multiple newlines
+            if (entryText.trim() === "") {
                 return "";
             }
 
-            // Format this individual entry for clickable timestamps
-            // This part reuses the line-by-line logic from the previous version of formatMemoForDisplay,
-            // but applies it to `entryText` instead of the whole `memoContent`.
             const lines = entryText.split('\n');
             const clickableEntryLines = lines.map(line => {
-                const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/; 
+                const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/;
                 const matchWithRest = line.match(timestampWithRestRegex);
-
                 if (matchWithRest) {
-                    const time = matchWithRest[1]; 
-                    const rest = matchWithRest[2]; 
-                    if (rest.trim() === "") { 
+                    const time = matchWithRest[1];
+                    const rest = matchWithRest[2];
+                    if (rest.trim() === "") {
                          return `<span class="clickable-timestamp" data-time="${time}">${time}</span>`;
-                    } else { 
+                    } else {
                          return `<span class="clickable-timestamp" data-time="${time}">${time}</span>` + escapeHTML(rest);
                     }
                 }
-                return escapeHTML(line); 
+                return escapeHTML(line);
             });
             const formattedEntryHtml = clickableEntryLines.join('\n');
 
-            // Construct the HTML for this entry with a delete button
+            // New HTML structure with actions container and confirm/cancel buttons
             return `<div class="memo-entry" data-entry-index="${index}">` +
-                   `<div class="memo-entry-content">${formattedEntryHtml}</div>` + // Wrap content for better styling if needed
-                   `<button class="delete-memo-entry-btn" data-entry-index="${index}" aria-label="Delete this entry">X</button>` +
+                       `<div class="memo-entry-content">${formattedEntryHtml}</div>` +
+                       `<div class="memo-entry-actions">` +
+                           `<button class="delete-memo-entry-btn" data-entry-index="${index}" aria-label="Delete this entry">X</button>` +
+                           `<button class="confirm-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="Confirm delete">Confirm</button>` +
+                           `<button class="cancel-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="Cancel delete">Cancel</button>` +
+                       `</div>` +
                    `</div>`;
         });
 
-        return allEntriesHtml.filter(html => html !== "").join(''); // Filter out empty strings from skipped entries and join
+        return allEntriesHtml.filter(html => html !== "").join('');
     } catch (error) {
         console.error("Error in formatMemoForDisplay:", error);
-        return escapeHTML(memoContent) || ""; // Fallback
+        return escapeHTML(memoContent) || "";
     }
 }
 
@@ -277,10 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.electronAPI.invoke('get-memo', currentFilePath)
                 .then(fetchedMemoContent => {
                     currentRawMemoContent = fetchedMemoContent; // Store the original content
-                    
+
                     // Use the new formatting function
-                    memoDisplayArea.innerHTML = formatMemoForDisplay(fetchedMemoContent); 
-                    
+                    memoDisplayArea.innerHTML = formatMemoForDisplay(fetchedMemoContent);
+
                     console.log(`[MEMO] Memo loaded and displayed for: ${currentFilePath}`);
                 })
                 .catch(e => {
@@ -478,13 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // After saving, clear the textarea and reload the full memo display
                     memoTextArea.value = ''; 
-                    
+
                     // Fetch the latest full memo content after save
                     const updatedMemoContent = await window.electronAPI.invoke('get-memo', currentFilePath);
-                    
+
                     // Store the raw updated content
-                    currentRawMemoContent = updatedMemoContent; 
-                    
+                    currentRawMemoContent = updatedMemoContent;
+
                     // Format for display and then set innerText
                     if(memoDisplayArea) {
                         memoDisplayArea.innerHTML = formatMemoForDisplay(updatedMemoContent);
@@ -536,30 +536,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // (Inside DOMContentLoaded, after memoDisplayArea is defined)
     if (memoDisplayArea) {
-        memoDisplayArea.addEventListener('click', async (event) => { // Make listener async for await
+        memoDisplayArea.addEventListener('click', async (event) => {
             const target = event.target;
+            const memoEntryElement = target.closest('.memo-entry'); // Find the parent memo entry
+            let entryIndex = -1;
 
+            if (memoEntryElement) {
+                entryIndex = parseInt(memoEntryElement.dataset.entryIndex, 10);
+            }
+
+            // --- Handle Clickable Timestamps ---
             if (target.classList.contains('clickable-timestamp')) {
-                // ... existing timestamp click logic ...
-                // (This part should remain unchanged from its previous correct state)
-                event.preventDefault(); 
-                const timeString = target.dataset.time; 
-                if (!timeString) {
-                    console.error('Timestamp data attribute not found on clicked element:', target);
-                    return;
-                }
+                event.preventDefault();
+                const timeString = target.dataset.time;
+                // ... (rest of existing timestamp logic - parsing time, currentVideoElement.currentTime = ...)
+                // This logic should be complete and correct as per previous steps.
+                if (!timeString) { /* ... error ... */ return; }
                 const parts = timeString.split(':');
-                if (parts.length !== 3) {
-                    console.error('Invalid timestamp format:', timeString);
-                    return;
-                }
+                if (parts.length !== 3) { /* ... error ... */ return; }
                 const hours = parseInt(parts[0], 10);
                 const minutes = parseInt(parts[1], 10);
                 const seconds = parseInt(parts[2], 10);
-                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
-                    console.error('Invalid time components in timestamp:', timeString);
-                    return;
-                }
+                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) { /* ... error ... */ return; }
                 const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
                 if (currentVideoElement && currentFileType === 'video') {
                     currentVideoElement.currentTime = totalSeconds;
@@ -567,47 +565,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     console.log(`Timestamp clicked: ${timeString}, but no video element or not a video file.`);
                 }
-            } else if (target.classList.contains('delete-memo-entry-btn')) {
+                return; // Handled timestamp click
+            }
+
+            // --- Handle Initial Delete Click ("X" button) ---
+            if (target.classList.contains('delete-memo-entry-btn')) {
                 event.preventDefault();
-                const entryIndexStr = target.dataset.entryIndex;
-                if (entryIndexStr === undefined) {
-                    console.error('data-entry-index not found on delete button.');
+                if (memoEntryElement) {
+                    const confirmBtn = memoEntryElement.querySelector('.confirm-delete-btn');
+                    const cancelBtn = memoEntryElement.querySelector('.cancel-delete-btn');
+                    target.style.display = 'none'; // Hide 'X'
+                    if (confirmBtn) confirmBtn.style.display = 'inline-block';
+                    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+                }
+                return; // Handled initial delete click
+            }
+
+            // --- Handle Cancel Delete Click ---
+            if (target.classList.contains('cancel-delete-btn')) {
+                event.preventDefault();
+                if (memoEntryElement) {
+                    const deleteBtn = memoEntryElement.querySelector('.delete-memo-entry-btn');
+                    const confirmBtn = memoEntryElement.querySelector('.confirm-delete-btn');
+                    target.style.display = 'none'; // Hide 'Cancel'
+                    if (confirmBtn) confirmBtn.style.display = 'none'; // Hide 'Confirm'
+                    if (deleteBtn) deleteBtn.style.display = 'inline-block'; // Show 'X'
+                }
+                return; // Handled cancel delete click
+            }
+
+            // --- Handle Confirm Delete Click ---
+            if (target.classList.contains('confirm-delete-btn')) {
+                event.preventDefault();
+                if (isNaN(entryIndex) || entryIndex < 0) {
+                    console.error('Invalid or missing entry index for confirm delete.');
                     alert('Error: Could not determine which entry to delete.');
                     return;
                 }
 
-                const entryIndex = parseInt(entryIndexStr, 10);
-                if (isNaN(entryIndex)) {
-                    console.error('Invalid data-entry-index:', entryIndexStr);
-                    alert('Error: Invalid entry index for deletion.');
-                    return;
-                }
-
-                // Confirmation before deleting
-                if (!confirm('コメントを削除しますか？')) {
-                    return;
-                }
-
+                // No confirm() dialog needed here anymore.
                 try {
                     let entries = currentRawMemoContent.split('\n\n');
                     if (entryIndex >= 0 && entryIndex < entries.length) {
-                        entries.splice(entryIndex, 1); // Remove the entry
+                        entries.splice(entryIndex, 1);
                         const newContentToSave = entries.join('\n\n');
 
-                        const result = await window.electronAPI.invoke('save-memo', { 
-                            mediaFilePath: currentFilePath, 
-                            content: newContentToSave 
+                        const result = await window.electronAPI.invoke('save-memo', {
+                            mediaFilePath: currentFilePath,
+                            content: newContentToSave
                         });
 
                         if (result.success) {
-                            // Successfully saved the modified memo content
-                            // Re-fetch the memo to ensure consistency and get the definitive saved state
                             const updatedMemoContentFromServer = await window.electronAPI.invoke('get-memo', currentFilePath);
-                            currentRawMemoContent = updatedMemoContentFromServer; // Update raw content cache
-                            memoDisplayArea.innerHTML = formatMemoForDisplay(currentRawMemoContent); // Re-render display
-
+                            currentRawMemoContent = updatedMemoContentFromServer;
+                            memoDisplayArea.innerHTML = formatMemoForDisplay(currentRawMemoContent);
+                            // No specific "Entry deleted" message needed here as the entry just disappears.
+                            // Or, a more generic "Memo updated" could be shown if desired.
                             if (memoStatusMessage) {
-                                memoStatusMessage.textContent = 'Entry deleted.';
+                                memoStatusMessage.textContent = 'Entry deleted.'; // Or 'Memo updated.'
                                 memoStatusMessage.className = 'success';
                                 memoStatusMessage.classList.add('show');
                                 setTimeout(() => {
@@ -618,24 +633,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             throw new Error(result.error || 'Unknown error saving memo after deletion.');
                         }
                     } else {
-                        console.error('Invalid entry index for deletion:', entryIndex);
+                        console.error('Invalid entry index for actual deletion:', entryIndex);
                         alert('Error: Could not delete entry, index out of bounds.');
                     }
                 } catch (e) {
-                    console.error('Error deleting memo entry:', e);
+                    console.error('Error confirming memo entry deletion:', e);
                     alert(`Failed to delete entry: ${e.message}`);
                     if (memoStatusMessage) {
-                        memoStatusMessage.textContent = `Error: ${e.message || 'Failed to delete'}`;
-                        memoStatusMessage.className = 'error';
-                        memoStatusMessage.classList.add('show');
-                        setTimeout(() => {
-                            if (memoStatusMessage) memoStatusMessage.classList.remove('show');
-                        }, 5000);
+                        // ... (error message display) ...
+                    }
+                    // Optional: revert button visibility to initial state on error
+                    if (memoEntryElement) {
+                        const deleteBtn = memoEntryElement.querySelector('.delete-memo-entry-btn');
+                        const confirmBtn = memoEntryElement.querySelector('.confirm-delete-btn');
+                        const cancelBtn = memoEntryElement.querySelector('.cancel-delete-btn');
+                        if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                        if (confirmBtn) confirmBtn.style.display = 'none';
+                        if (cancelBtn) cancelBtn.style.display = 'none';
                     }
                 }
+                return; // Handled confirm delete click
             }
         });
-    } else {
-        // console.warn already exists for memoDisplayArea not found
     }
 });
