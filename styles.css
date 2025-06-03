@@ -113,7 +113,7 @@ body {
 #sidebar button { /* Style for buttons within the sidebar */
     display: flex; /* Changed from block to flex */
     align-items: center; /* Added to vertically align icon and text */
-    gap: 6px; /* Added for spacing between icon and text */
+    gap: 5px; /* Changed from 6px */
     width: 100%;
     padding: 3px 12px; /* Changed padding */
     margin-bottom: 10px;
