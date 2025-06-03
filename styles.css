@@ -499,6 +499,16 @@ body {
     margin-bottom: 0; /* It's the last element in the section */
 }
 
+.clickable-timestamp {
+    cursor: pointer;
+    text-decoration: underline;
+    color: #61dafb; /* A typical 'link-like' color, adjust as needed */
+}
+
+.clickable-timestamp:hover {
+    color: #21a1c1; /* Darker or different color on hover */
+}
+
 #save-memo-btn:hover,
 #insert-timestamp-btn:hover { /* Update hover group */
     opacity: 0.9;

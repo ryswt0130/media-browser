@@ -1,14 +1,49 @@
-// Potentially place this near other helper functions if any, or at the top level of the script.
-function formatMemoForDisplay(memoContent) {
-    if (typeof memoContent !== 'string') {
-        // Return non-string content as is, or an empty string if that's preferred for non-strings.
-        return memoContent; 
+function escapeHTML(text) {
+    if (typeof text !== 'string') {
+        return text;
     }
-    // Replace [HH:MM:SS]\n with HH:MM:SS\n
-    let processedContent = memoContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]\n/gm, '$1\n');
-    // Replace [HH:MM:SS] (at start of line, possibly end of string) with HH:MM:SS
-    processedContent = processedContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]$/gm, '$1');
-    return processedContent;
+    return text.replace(/[&<>"']/g, function(match) {
+        switch (match) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case "'": return '&#039;';
+            default: return match;
+        }
+    });
+}
+
+function formatMemoForDisplay(memoContent) {
+    if (typeof memoContent !== 'string' || memoContent.trim() === "") {
+        return escapeHTML(memoContent); // Escape even if no timestamps, or return as is if truly empty
+    }
+
+    // Sticking to the line-by-line processing for safety:
+    const lines = memoContent.split('\n');
+    const htmlLines = lines.map(line => {
+        // Pattern: [HH:MM:SS]
+ (actually, the 
+ is handled by split, so just [HH:MM:SS] at end of this "line")
+        // Or [HH:MM:SS] followed by more text on the same conceptual line.
+        
+        // Try to match [HH:MM:SS] followed by more stuff
+        const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/; 
+        const matchWithRest = line.match(timestampWithRestRegex);
+
+        if (matchWithRest) {
+            const time = matchWithRest[1]; // HH:MM:SS
+            const rest = matchWithRest[2]; // Stuff after [HH:MM:SS] on the same line
+            
+            if (rest.trim() === "") { // Line was essentially just [HH:MM:SS]
+                 return `<span class="clickable-timestamp" data-time="${time}">${time}</span>`;
+            } else { // Line was [HH:MM:SS] followed by other text
+                 return `<span class="clickable-timestamp" data-time="${time}">${time}</span>` + escapeHTML(rest);
+            }
+        }
+        return escapeHTML(line); // No timestamp on this line
+    });
+    return htmlLines.join('\n');
 }
 
 const DEFAULT_BACKGROUND_COLOR = '#222'; // Default for media page, might differ from index.html
@@ -223,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentRawMemoContent = fetchedMemoContent; // Store the original content
                     
                     // Use the new formatting function
-                    memoDisplayArea.innerText = formatMemoForDisplay(fetchedMemoContent); 
+                    memoDisplayArea.innerHTML = formatMemoForDisplay(fetchedMemoContent); 
                     
                     console.log(`[MEMO] Memo loaded and displayed for: ${currentFilePath}`);
                 })
@@ -431,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Format for display and then set innerText
                     if(memoDisplayArea) {
-                        memoDisplayArea.innerText = formatMemoForDisplay(updatedMemoContent);
+                        memoDisplayArea.innerHTML = formatMemoForDisplay(updatedMemoContent);
                     }
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
@@ -476,5 +511,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('[MEMO] Insert timestamp clicked but no video element or not a video.');
             }
         });
+    }
+
+    // (Inside DOMContentLoaded, after memoDisplayArea is defined)
+    if (memoDisplayArea) {
+        memoDisplayArea.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target.classList.contains('clickable-timestamp')) {
+                event.preventDefault(); // Good practice, though span won't have default behavior
+
+                const timeString = target.dataset.time; // HH:MM:SS
+                if (!timeString) {
+                    console.error('Timestamp data attribute not found on clicked element:', target);
+                    return;
+                }
+
+                const parts = timeString.split(':');
+                if (parts.length !== 3) {
+                    console.error('Invalid timestamp format:', timeString);
+                    return;
+                }
+
+                const hours = parseInt(parts[0], 10);
+                const minutes = parseInt(parts[1], 10);
+                const seconds = parseInt(parts[2], 10);
+
+                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+                    console.error('Invalid time components in timestamp:', timeString);
+                    return;
+                }
+
+                const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+
+                if (currentVideoElement && currentFileType === 'video') {
+                    currentVideoElement.currentTime = totalSeconds;
+                    // Optionally, ensure the video plays if it's paused.
+                    // if (currentVideoElement.paused) {
+                    //     currentVideoElement.play();
+                    // }
+                    console.log(`Timestamp clicked: ${timeString}, seeking video to ${totalSeconds}s.`);
+                } else {
+                    console.log(`Timestamp clicked: ${timeString}, but no video element or not a video file.`);
+                    // Optionally, inform the user via a status message if it's not obvious
+                    // why clicking did nothing (e.g., if viewing an image).
+                }
+            }
+        });
+    } else {
+        console.warn("memoDisplayArea not found, cannot attach click listener for timestamps.");
     }
 });
