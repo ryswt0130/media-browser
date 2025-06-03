@@ -15,35 +15,38 @@ function escapeHTML(text) {
 }
 
 function formatMemoForDisplay(memoContent) {
-    if (typeof memoContent !== 'string' || memoContent.trim() === "") {
-        return escapeHTML(memoContent); // Escape even if no timestamps, or return as is if truly empty
-    }
-
-    // Sticking to the line-by-line processing for safety:
-    const lines = memoContent.split('\n');
-    const htmlLines = lines.map(line => {
-        // Pattern: [HH:MM:SS]
- (actually, the 
- is handled by split, so just [HH:MM:SS] at end of this "line")
-        // Or [HH:MM:SS] followed by more text on the same conceptual line.
-        
-        // Try to match [HH:MM:SS] followed by more stuff
-        const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/; 
-        const matchWithRest = line.match(timestampWithRestRegex);
-
-        if (matchWithRest) {
-            const time = matchWithRest[1]; // HH:MM:SS
-            const rest = matchWithRest[2]; // Stuff after [HH:MM:SS] on the same line
-            
-            if (rest.trim() === "") { // Line was essentially just [HH:MM:SS]
-                 return `<span class="clickable-timestamp" data-time="${time}">${time}</span>`;
-            } else { // Line was [HH:MM:SS] followed by other text
-                 return `<span class="clickable-timestamp" data-time="${time}">${time}</span>` + escapeHTML(rest);
-            }
+    try {
+        if (typeof memoContent !== 'string' || memoContent.trim() === "") {
+            return escapeHTML(memoContent); 
         }
-        return escapeHTML(line); // No timestamp on this line
-    });
-    return htmlLines.join('\n');
+
+        const lines = memoContent.split('\n');
+        const htmlLines = lines.map(line => {
+            // Regex for [HH:MM:SS] possibly followed by other text on the same line part
+            const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/; 
+            const matchWithRest = line.match(timestampWithRestRegex);
+
+            if (matchWithRest) {
+                const time = matchWithRest[1]; // HH:MM:SS
+                const rest = matchWithRest[2]; // Stuff after [HH:MM:SS] on the same line part
+                
+                // If rest is empty, it means the line part was effectively just [HH:MM:SS]
+                if (rest.trim() === "") { 
+                     return `<span class="clickable-timestamp" data-time="${time}">${time}</span>`;
+                } else { // Line part was [HH:MM:SS] followed by other text
+                     return `<span class="clickable-timestamp" data-time="${time}">${time}</span>` + escapeHTML(rest);
+                }
+            }
+            // No timestamp pattern at the start of this line part, so escape the whole line part
+            return escapeHTML(line); 
+        });
+        return htmlLines.join('\n');
+    } catch (error) {
+        console.error("Error in formatMemoForDisplay:", error);
+        // Return the original content, escaped, as a fallback to prevent breaking UI.
+        // Or return a specific error message string if preferred.
+        return escapeHTML(memoContent) || ""; // Ensure it's at least an empty string if memoContent was null/undefined
+    }
 }
 
 const DEFAULT_BACKGROUND_COLOR = '#222'; // Default for media page, might differ from index.html
