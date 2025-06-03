@@ -664,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             navigator.clipboard.writeText(textToCopy)
                 .then(() => {
                     if (memoStatusMessage) { // Assuming memoStatusMessage is available
-                        memoStatusMessage.textContent = 'メモをクリップボードにコピーしました';
+                        memoStatusMessage.textContent = 'クリップボードにコピー';
                         memoStatusMessage.className = 'success'; // Ensure this class is styled
                         memoStatusMessage.classList.add('show');
                         setTimeout(() => {

@@ -510,11 +510,12 @@ body {
 
 .memo-subheading-controls {
     display: flex;
-    justify-content: space-between; /* Puts h4 on left, button on right */
+    justify-content: flex-start; /* Changed from space-between */
     align-items: center; /* Vertically aligns them nicely */
     /* Mimic original h4 margin for spacing around this block */
     margin-top: 10px;
     margin-bottom: 5px;
+    gap: 8px; /* Added for spacing between items */
 }
 
 .memo-subheading-controls h4 {
@@ -641,12 +642,12 @@ body {
 #memo-status-message {
     /* margin-left: 10px; /* Handled by gap in #memo-controls */
     font-size: 0.9em;
-    padding: 3px 6px;
+    padding: 2px 3px; /* Changed from 3px 6px */
     border-radius: 3px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s; /* Visibility hidden after opacity fades */
-    padding: 3px 6px; /* Keep this */
+    /* padding: 3px 6px; /* Keep this */ /* This line was duplicated, removing the second instance */
     border-radius: 3px; /* Keep this */
 }
 #memo-status-message.show {
