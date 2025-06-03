@@ -419,8 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeVolume();
 
     // Set initial text for toggle buttons (depends on toggleFavoritesViewBtn, toggleHistoryViewBtn)
-    if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
-    if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
+    if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? '全メディア表示' : 'お気に入り表示';
+    if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? '全メディア表示' : '履歴表示';
+    if(toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = showingOnlyMemos ? '全メディア表示' : 'メモ表示';
 
     // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
@@ -497,9 +498,11 @@ document.addEventListener('DOMContentLoaded', () => {
             showingOnlyFavorites = !showingOnlyFavorites;
             if (showingOnlyFavorites) {
                 showingOnlyHistory = false;
-                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
+                showingOnlyMemos = false; // Ensure other views are reset
+                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = '履歴表示';
+                if (toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = 'メモ表示';
             }
-            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
+            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? '全メディア表示' : 'お気に入り表示';
             renderMediaGrid();
         });
     } else {
@@ -511,9 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
             showingOnlyHistory = !showingOnlyHistory;
             if (showingOnlyHistory) {
                 showingOnlyFavorites = false;
-                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+                showingOnlyMemos = false; // Ensure other views are reset
+                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'お気に入り表示';
+                if (toggleMemoListViewBtn) toggleMemoListViewBtn.textContent = 'メモ表示';
             }
-            toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
+            toggleHistoryViewBtn.textContent = showingOnlyHistory ? '全メディア表示' : '履歴表示';
             await renderMediaGrid();
         });
     } else {
@@ -536,12 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (showingOnlyMemos) {
                 showingOnlyFavorites = false; // Deactivate other views
                 showingOnlyHistory = false;
-                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites'; 
-                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
-                toggleMemoListViewBtn.textContent = 'Show All Media';
+                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'お気に入り表示';
+                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = '履歴表示';
+                toggleMemoListViewBtn.textContent = '全メディア表示';
                 if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
             } else {
-                toggleMemoListViewBtn.textContent = 'Show Memos';
+                toggleMemoListViewBtn.textContent = 'メモ表示';
                 if (memoSortControls) memoSortControls.style.display = 'none';
             }
             renderMediaGrid();
@@ -674,7 +679,7 @@ function displayRegisteredFolders(foldersArray) {
 
         const removeBtn = document.createElement('button');
         removeBtn.classList.add('remove-folder-btn');
-        removeBtn.textContent = 'Remove';
+        removeBtn.textContent = '削除';
         removeBtn.setAttribute('data-folderpath', folderEntry.path);
 
         removeBtn.addEventListener('click', async (e) => {
@@ -704,7 +709,7 @@ function displayRegisteredFolders(foldersArray) {
                     removeBtn.disabled = false;
                     checkbox.disabled = false;
                     li.style.opacity = 1;
-                    removeBtn.textContent = 'Remove';
+                    removeBtn.textContent = '削除';
                 }
             } catch (error) {
                 console.error('Error invoking remove-scanned-folder:', error);
@@ -712,7 +717,7 @@ function displayRegisteredFolders(foldersArray) {
                 removeBtn.disabled = false;
                 checkbox.disabled = false;
                 li.style.opacity = 1;
-                removeBtn.textContent = 'Remove';
+                removeBtn.textContent = '削除';
             }
         });
 

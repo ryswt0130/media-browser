@@ -152,9 +152,9 @@ function formatMemoForDisplay(memoContent) {
             return `<div class="memo-entry" data-entry-index="${index}">` +
                        `<div class="memo-entry-content">${formattedEntryHtml}</div>` +
                        `<div class="memo-entry-actions">` +
-                           `<button class="delete-memo-entry-btn" data-entry-index="${index}" aria-label="Delete this entry">X</button>` +
-                           `<button class="confirm-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="Confirm delete">Confirm</button>` +
-                           `<button class="cancel-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="Cancel delete">Cancel</button>` +
+                           `<button class="delete-memo-entry-btn" data-entry-index="${index}" aria-label="このエントリーを削除">X</button>` +
+                           `<button class="confirm-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="削除を確認">削除</button>` +
+                           `<button class="cancel-delete-btn" data-entry-index="${index}" style="display:none;" aria-label="削除をキャンセル">キャンセル</button>` +
                        `</div>` +
                    `</div>`;
         });
