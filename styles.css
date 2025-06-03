@@ -482,6 +482,21 @@ body {
     display: none; /* JS will toggle based on video type */
 }
 
+#copy-memo-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #5bc0de; /* A light blue/info color, for example */
+    color: white;
+    /* Ensure it participates in the flex layout gap of #memo-controls */
+}
+
+#copy-memo-btn:hover {
+    opacity: 0.9; /* Consistent hover effect */
+}
+
 /* #edit-memo-btn and #cancel-edit-memo-btn rules will be removed */
 
 #memo-section h4 { /* For "Saved Memo:" heading */

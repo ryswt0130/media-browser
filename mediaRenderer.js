@@ -198,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // editMemoBtn and cancelEditMemoBtn are no longer used with the new UI flow
     // const editMemoBtn = document.getElementById('edit-memo-btn');
     // const cancelEditMemoBtn = document.getElementById('cancel-edit-memo-btn');
+    const copyMemoBtn = document.getElementById('copy-memo-btn');
 
     // Old mode switching functions are no longer needed
     // function showMemoDisplayMode(content) { ... }
@@ -636,6 +637,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // (Inside DOMContentLoaded, after memoDisplayArea is defined)
+    if (copyMemoBtn) {
+        copyMemoBtn.addEventListener('click', () => {
+            const titleElement = document.getElementById('media-title-display');
+            const videoTitle = titleElement ? titleElement.textContent || '' : '';
+
+            const rawMemo = currentRawMemoContent; // Assuming currentRawMemoContent is available in this scope
+
+            let clipboardLines = [];
+            clipboardLines.push(videoTitle);
+
+            if (rawMemo && rawMemo.trim() !== "") {
+                const memoEntries = rawMemo.split('\n\n');
+                memoEntries.forEach(entry => {
+                    if (entry.trim() !== "") {
+                        const entryLines = entry.split('\n');
+                        entryLines.forEach(line => {
+                            clipboardLines.push('　' + line); // Prepend full-width space
+                        });
+                    }
+                });
+            }
+
+            const textToCopy = clipboardLines.join('\n');
+
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    if (memoStatusMessage) { // Assuming memoStatusMessage is available
+                        memoStatusMessage.textContent = 'メモをクリップボードにコピーしました';
+                        memoStatusMessage.className = 'success'; // Ensure this class is styled
+                        memoStatusMessage.classList.add('show');
+                        setTimeout(() => {
+                            if (memoStatusMessage) memoStatusMessage.classList.remove('show');
+                        }, 3000);
+                    }
+                    console.log('Memo copied to clipboard.');
+                })
+                .catch(err => {
+                    console.error('Failed to copy memo to clipboard:', err);
+                    if (memoStatusMessage) {
+                        memoStatusMessage.textContent = 'コピーに失敗しました';
+                        memoStatusMessage.className = 'error'; // Ensure this class is styled
+                        memoStatusMessage.classList.add('show');
+                        setTimeout(() => {
+                            if (memoStatusMessage) memoStatusMessage.classList.remove('show');
+                        }, 5000);
+                    }
+                });
+        });
+    } else {
+        console.warn("Copy Memo button (#copy-memo-btn) not found.");
+    }
+
     if (memoDisplayArea) {
         memoDisplayArea.addEventListener('click', async (event) => {
             const target = event.target;
