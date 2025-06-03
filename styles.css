@@ -389,6 +389,7 @@ body {
     object-fit: contain;
     background-color: #000;
     margin: 0 auto;
+    border-radius: 8px; /* Added this line */
 }
 
 #media-viewer-container > iframe {
