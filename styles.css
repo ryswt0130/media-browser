@@ -459,7 +459,7 @@ body {
 }
 
 #save-memo-btn { /* Now "Save Entry" button */
-    padding: 8px 12px;
+    padding: 2px 3px; /* Changed padding */
     font-size: 13px;
     border: none;
     border-radius: 4px;
@@ -471,7 +471,7 @@ body {
 }
 
 #insert-timestamp-btn {
-    padding: 8px 12px;
+    padding: 2px 3px; /* Changed padding */
     font-size: 13px;
     border: none;
     border-radius: 4px;
@@ -483,7 +483,7 @@ body {
 }
 
 #copy-memo-btn {
-    padding: 8px 12px;
+    padding: 2px 3px; /* Changed padding */
     font-size: 13px;
     border: none;
     border-radius: 4px;
@@ -506,6 +506,20 @@ body {
     color: #c0c0c0; 
     border-bottom: 1px solid #383838;
     padding-bottom: 3px;
+}
+
+.memo-subheading-controls {
+    display: flex;
+    justify-content: space-between; /* Puts h4 on left, button on right */
+    align-items: center; /* Vertically aligns them nicely */
+    /* Mimic original h4 margin for spacing around this block */
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.memo-subheading-controls h4 {
+    margin: 0; /* Reset default h4 margins or its specific ones from #memo-section h4 */
+    /* font-size and color will still be inherited from #memo-section h4 if not overridden */
 }
 
 #memo-display-area { /* For displaying all saved memo content */
