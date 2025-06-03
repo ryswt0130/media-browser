@@ -522,7 +522,7 @@ body {
 
 .memo-entry {
     position: relative; /* Still useful if actions are sometimes positioned relative to entry, but not essential for buttons in a row */
-    padding: 10px;
+    padding: 2px; /* Changed from 10px */
     margin-bottom: 10px;
     border: 1px solid #4a4a4a;
     border-radius: 4px;
