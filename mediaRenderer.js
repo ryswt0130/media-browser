@@ -210,22 +210,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentRawMemoContent = fetchedMemoContent; // Store the original content
 
                     if (typeof fetchedMemoContent === 'string' && fetchedMemoContent.trim() !== "") {
-                        const lines = fetchedMemoContent.split('\n');
-                        const processedLines = lines.map(line => {
-                            // Regex to match [HH:MM:SS] at the beginning of a line and capture HH:MM:SS
-                            // It also captures the rest of the line after the timestamp (including the space/newline separator if present)
-                            const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\](.*)/);
-                            if (match) {
-                                // match[1] is the HH:MM:SS part
-                                // match[2] is the rest of the line after the [HH:MM:SS] part.
-                                // The user requested the newline to be preserved if it was part of the timestamp format.
-                                // My previous change made the inserted timestamp "[HH:MM:SS]\n".
-                                // So, if match[2] starts with '\n', that newline is preserved.
-                                return match[1] + match[2]; 
-                            }
-                            return line; // Return original line if no timestamp is matched
-                        });
-                        memoDisplayArea.innerText = processedLines.join('\n');
+                        // Process the whole multi-line string to find and replace timestamps
+                        // Regex: Find [HH:MM:SS] (capturing HH:MM:SS) followed by a newline
+                        // Replace with HH:MM:SS followed by a newline
+                        let processedContent = fetchedMemoContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]\n/gm, '$1\n');
+                        
+                        // Regex for timestamps at the very end of the string that might not have a newline
+                        // (e.g. if user manually typed it or it's the absolute end of the memo)
+                        processedContent = processedContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]$/gm, '$1');
+
+                        memoDisplayArea.innerText = processedContent;
                     } else {
                         // Handle empty or non-string memo content (e.g. if it's initially null or empty)
                         memoDisplayArea.innerText = fetchedMemoContent;
@@ -389,26 +383,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             try {
-                let newEntry = memoTextArea.value.trim(); // User's input, potentially with user-inserted timestamp
+                let newEntry = memoTextArea.value.trim(); // User's input
 
-                // Check if the entry is empty or just a timestamp
-                const timestampPattern = /^\[\d{2}:\d{2}:\d{2}\]\n/; // Regex for [HH:MM:SS]\n at the start
-                let textAfterTimestamp = newEntry;
-
-                if (timestampPattern.test(textAfterTimestamp)) {
-                    textAfterTimestamp = textAfterTimestamp.replace(timestampPattern, '').trim();
-                }
-
-                if (textAfterTimestamp === "") {
-                    let message = 'Memo entry is empty.'; // Default for truly empty
-                    if (newEntry !== "" && timestampPattern.test(newEntry)) { 
-                        // Original input was not empty but became empty after removing timestamp,
-                        // meaning it was a timestamp-only or timestamp + whitespace.
-                        message = 'Cannot save timestamp without additional comments.';
-                    }
-                    
+                // Check if the entry is truly empty
+                if (newEntry === "") {
                     if (memoStatusMessage) {
-                        memoStatusMessage.textContent = message;
+                        memoStatusMessage.textContent = 'Memo entry is empty.';
                         memoStatusMessage.className = 'error'; 
                         memoStatusMessage.classList.add('show');
                         setTimeout(() => {
@@ -417,8 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     return; 
                 }
-                // If we are here, the entry is valid (not empty, not just a timestamp).
-                // newEntry (the trimmed input from textarea) is what we want to append.
+                // Timestamp-only entries are now allowed, so no further specific checks for that.
+                // The prefix logic has already been removed in a previous step.
 
                 const contentToSave = (currentRawMemoContent ? currentRawMemoContent + "\n\n" : "") + newEntry;
 
