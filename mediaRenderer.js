@@ -199,6 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // const editMemoBtn = document.getElementById('edit-memo-btn');
     // const cancelEditMemoBtn = document.getElementById('cancel-edit-memo-btn');
     const copyMemoBtn = document.getElementById('copy-memo-btn');
+    const saveStatusMessage = document.getElementById('save-status-message');
 
     // Old mode switching functions are no longer needed
     // function showMemoDisplayMode(content) { ... }
@@ -567,16 +568,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (result.success) {
                     console.log(`[MEMO] Memo entry saved for: ${currentFilePath}`);
-                    if (memoStatusMessage) {
-                        memoStatusMessage.textContent = 'Entry saved!'; // Updated message
-                        memoStatusMessage.className = 'success'; 
-                        memoStatusMessage.classList.add('show'); 
-
+                    if (saveStatusMessage) { // New check for the new element
+                        saveStatusMessage.textContent = '保存完了'; // New text "Save Complete"
+                        saveStatusMessage.className = 'success';
+                        saveStatusMessage.classList.add('show');
                         setTimeout(() => {
-                            if (memoStatusMessage) { 
-                                memoStatusMessage.classList.remove('show'); 
-                            }
-                        }, 3000); 
+                            if (saveStatusMessage) saveStatusMessage.classList.remove('show');
+                        }, 3000); // Or existing timeout duration
                     }
                     // After saving, clear the textarea and reload the full memo display
                     memoTextArea.value = ''; 
@@ -596,16 +594,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (e) {
                 console.error(`[MEMO] Error saving memo: `, e);
-                if (memoStatusMessage) {
-                    memoStatusMessage.textContent = `Error: ${e.message || 'Failed to save'}`;
-                    memoStatusMessage.className = 'error'; // Set color class
-                    memoStatusMessage.classList.add('show'); // Trigger fade-in and visibility
-
+                if (saveStatusMessage) { // New check for the new element
+                    saveStatusMessage.textContent = `Error: ${e.message || 'Failed to save'}`; // Or appropriate Japanese error
+                    saveStatusMessage.className = 'error';
+                    saveStatusMessage.classList.add('show');
                     setTimeout(() => {
-                        if (memoStatusMessage) {
-                            memoStatusMessage.classList.remove('show'); // Trigger fade-out
-                        }
-                    }, 5000); 
+                        if (saveStatusMessage) saveStatusMessage.classList.remove('show');
+                    }, 5000); // Or existing timeout duration
                 }
             }
         });

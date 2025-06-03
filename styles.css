@@ -635,8 +635,32 @@ body {
 }
 
 #save-memo-btn:hover,
-#insert-timestamp-btn:hover { /* Update hover group */
+#insert-timestamp-btn:hover, /* Added copy-memo-btn to hover group */
+#copy-memo-btn:hover {
     opacity: 0.9;
+}
+
+#save-status-message {
+    font-size: 0.9em;
+    border-radius: 3px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s;
+    padding: 2px 3px; /* User requested padding */
+    /* margin-left: 8px; /* Consider adding if gap in #memo-controls is not enough.
+                          #memo-controls has 'gap: 10px;' which should be sufficient. */
+}
+
+#save-status-message.success {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+#save-status-message.error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
 }
 
 #memo-status-message {
