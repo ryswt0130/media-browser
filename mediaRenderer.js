@@ -1,3 +1,16 @@
+// Potentially place this near other helper functions if any, or at the top level of the script.
+function formatMemoForDisplay(memoContent) {
+    if (typeof memoContent !== 'string') {
+        // Return non-string content as is, or an empty string if that's preferred for non-strings.
+        return memoContent; 
+    }
+    // Replace [HH:MM:SS]\n with HH:MM:SS\n
+    let processedContent = memoContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]\n/gm, '$1\n');
+    // Replace [HH:MM:SS] (at start of line, possibly end of string) with HH:MM:SS
+    processedContent = processedContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]$/gm, '$1');
+    return processedContent;
+}
+
 const DEFAULT_BACKGROUND_COLOR = '#222'; // Default for media page, might differ from index.html
 const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
 
@@ -208,22 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.electronAPI.invoke('get-memo', currentFilePath)
                 .then(fetchedMemoContent => {
                     currentRawMemoContent = fetchedMemoContent; // Store the original content
-
-                    if (typeof fetchedMemoContent === 'string' && fetchedMemoContent.trim() !== "") {
-                        // Process the whole multi-line string to find and replace timestamps
-                        // Regex: Find [HH:MM:SS] (capturing HH:MM:SS) followed by a newline
-                        // Replace with HH:MM:SS followed by a newline
-                        let processedContent = fetchedMemoContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]\n/gm, '$1\n');
-                        
-                        // Regex for timestamps at the very end of the string that might not have a newline
-                        // (e.g. if user manually typed it or it's the absolute end of the memo)
-                        processedContent = processedContent.replace(/^\[(\d{2}:\d{2}:\d{2})\]$/gm, '$1');
-
-                        memoDisplayArea.innerText = processedContent;
-                    } else {
-                        // Handle empty or non-string memo content (e.g. if it's initially null or empty)
-                        memoDisplayArea.innerText = fetchedMemoContent;
-                    }
+                    
+                    // Use the new formatting function
+                    memoDisplayArea.innerText = formatMemoForDisplay(fetchedMemoContent); 
                     
                     console.log(`[MEMO] Memo loaded and displayed for: ${currentFilePath}`);
                 })
@@ -422,11 +422,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // After saving, clear the textarea and reload the full memo display
                     memoTextArea.value = ''; 
-                    // Reload and display the full memo
+                    
+                    // Fetch the latest full memo content after save
                     const updatedMemoContent = await window.electronAPI.invoke('get-memo', currentFilePath);
-                    if(memoDisplayArea) memoDisplayArea.innerText = updatedMemoContent; 
-                    currentRawMemoContent = updatedMemoContent; // Update local cache
-
+                    
+                    // Store the raw updated content
+                    currentRawMemoContent = updatedMemoContent; 
+                    
+                    // Format for display and then set innerText
+                    if(memoDisplayArea) {
+                        memoDisplayArea.innerText = formatMemoForDisplay(updatedMemoContent);
+                    }
                 } else {
                     throw new Error(result.error || 'Unknown error saving memo.');
                 }
