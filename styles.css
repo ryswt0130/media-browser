@@ -430,7 +430,7 @@ body {
 #memo-section h3 {
     margin-top: 0; 
     margin-bottom: 8px;
-    font-size: 1.1em; 
+    font-size: 0.99em; /* Changed from 1.1em */
     color: #e0e0e0; 
     border-bottom: 1px solid #444;
     padding-bottom: 4px;
@@ -487,7 +487,7 @@ body {
 #memo-section h4 { /* For "Saved Memo:" heading */
     margin-top: 10px; 
     margin-bottom: 5px;
-    font-size: 1.0em; 
+    font-size: 0.9em; /* Changed from 1.0em */
     color: #c0c0c0; 
     border-bottom: 1px solid #383838;
     padding-bottom: 3px;
