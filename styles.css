@@ -340,6 +340,7 @@ body {
     width: 100%;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start; /* Added this line */
     /* align-items: center; Removed, children are width 100% or use margin:auto */
 }
 
@@ -373,7 +374,8 @@ body {
     /* flex-grow: 1; Removed to allow natural sizing */
     flex-shrink: 1; /* Allow it to shrink */
     min-height: 0; /* Allows it to shrink if content is smaller */
-    align-self: flex-start; /* Added this line */
+    align-self: flex-start;
+    height: fit-content; /* Added this line */
 }
 
 /* Styling for the actual media elements for aspect ratio and max height */
