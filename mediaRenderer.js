@@ -37,19 +37,19 @@ function formatMemoForDisplay(memoContent) {
             // but applies it to `entryText` instead of the whole `memoContent`.
             const lines = entryText.split('\n');
             const clickableEntryLines = lines.map(line => {
-                const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/;
+                const timestampWithRestRegex = /^\[(\d{2}:\d{2}:\d{2})\](.*)/; 
                 const matchWithRest = line.match(timestampWithRestRegex);
 
                 if (matchWithRest) {
-                    const time = matchWithRest[1];
-                    const rest = matchWithRest[2];
-                    if (rest.trim() === "") {
+                    const time = matchWithRest[1]; 
+                    const rest = matchWithRest[2]; 
+                    if (rest.trim() === "") { 
                          return `<span class="clickable-timestamp" data-time="${time}">${time}</span>`;
-                    } else {
+                    } else { 
                          return `<span class="clickable-timestamp" data-time="${time}">${time}</span>` + escapeHTML(rest);
                     }
                 }
-                return escapeHTML(line);
+                return escapeHTML(line); 
             });
             const formattedEntryHtml = clickableEntryLines.join('\n');
 
@@ -277,10 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.electronAPI.invoke('get-memo', currentFilePath)
                 .then(fetchedMemoContent => {
                     currentRawMemoContent = fetchedMemoContent; // Store the original content
-
+                    
                     // Use the new formatting function
-                    memoDisplayArea.innerHTML = formatMemoForDisplay(fetchedMemoContent);
-
+                    memoDisplayArea.innerHTML = formatMemoForDisplay(fetchedMemoContent); 
+                    
                     console.log(`[MEMO] Memo loaded and displayed for: ${currentFilePath}`);
                 })
                 .catch(e => {
@@ -478,13 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // After saving, clear the textarea and reload the full memo display
                     memoTextArea.value = ''; 
-
+                    
                     // Fetch the latest full memo content after save
                     const updatedMemoContent = await window.electronAPI.invoke('get-memo', currentFilePath);
-
+                    
                     // Store the raw updated content
-                    currentRawMemoContent = updatedMemoContent;
-
+                    currentRawMemoContent = updatedMemoContent; 
+                    
                     // Format for display and then set innerText
                     if(memoDisplayArea) {
                         memoDisplayArea.innerHTML = formatMemoForDisplay(updatedMemoContent);
@@ -542,8 +542,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target.classList.contains('clickable-timestamp')) {
                 // ... existing timestamp click logic ...
                 // (This part should remain unchanged from its previous correct state)
-                event.preventDefault();
-                const timeString = target.dataset.time;
+                event.preventDefault(); 
+                const timeString = target.dataset.time; 
                 if (!timeString) {
                     console.error('Timestamp data attribute not found on clicked element:', target);
                     return;
@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Confirmation before deleting
-                if (!confirm('Are you sure you want to delete this memo entry?')) {
+                if (!confirm('コメントを削除しますか？')) {
                     return;
                 }
 
@@ -594,9 +594,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         entries.splice(entryIndex, 1); // Remove the entry
                         const newContentToSave = entries.join('\n\n');
 
-                        const result = await window.electronAPI.invoke('save-memo', {
-                            mediaFilePath: currentFilePath,
-                            content: newContentToSave
+                        const result = await window.electronAPI.invoke('save-memo', { 
+                            mediaFilePath: currentFilePath, 
+                            content: newContentToSave 
                         });
 
                         if (result.success) {

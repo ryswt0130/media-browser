@@ -491,7 +491,7 @@ body {
 
 #memo-display-area { /* For displaying all saved memo content */
     padding: 8px;
-    background-color: #252526;
+    background-color: #252526; 
     border-radius: 4px;
     white-space: pre-wrap; 
     min-height: 80px; 
