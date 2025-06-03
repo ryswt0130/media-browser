@@ -542,16 +542,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             try {
-                let newEntry = memoTextArea.value.trim(); // User's input
+                let newEntry = memoTextArea.value.trim();
 
                 // Check if the entry is truly empty
                 if (newEntry === "") {
-                    if (memoStatusMessage) {
-                        memoStatusMessage.textContent = 'Memo entry is empty.';
-                        memoStatusMessage.className = 'error'; 
-                        memoStatusMessage.classList.add('show');
+                    if (saveStatusMessage) {
+                        saveStatusMessage.textContent = 'メモが空です';
+                        saveStatusMessage.className = 'error';
+                        saveStatusMessage.classList.add('show');
                         setTimeout(() => {
-                            if (memoStatusMessage) memoStatusMessage.classList.remove('show');
+                            if (saveStatusMessage) saveStatusMessage.classList.remove('show');
                         }, 3000);
                     }
                     return; 
@@ -568,13 +568,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (result.success) {
                     console.log(`[MEMO] Memo entry saved for: ${currentFilePath}`);
-                    if (saveStatusMessage) { // New check for the new element
-                        saveStatusMessage.textContent = '保存完了'; // New text "Save Complete"
+                    if (saveStatusMessage) {
+                        saveStatusMessage.textContent = '保存完了';
                         saveStatusMessage.className = 'success';
                         saveStatusMessage.classList.add('show');
                         setTimeout(() => {
                             if (saveStatusMessage) saveStatusMessage.classList.remove('show');
-                        }, 3000); // Or existing timeout duration
+                        }, 3000);
                     }
                     // After saving, clear the textarea and reload the full memo display
                     memoTextArea.value = ''; 
@@ -594,13 +594,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (e) {
                 console.error(`[MEMO] Error saving memo: `, e);
-                if (saveStatusMessage) { // New check for the new element
-                    saveStatusMessage.textContent = `Error: ${e.message || 'Failed to save'}`; // Or appropriate Japanese error
+                if (saveStatusMessage) {
+                    saveStatusMessage.textContent = `Error: ${e.message || '保存に失敗しました'}`;
                     saveStatusMessage.className = 'error';
                     saveStatusMessage.classList.add('show');
                     setTimeout(() => {
                         if (saveStatusMessage) saveStatusMessage.classList.remove('show');
-                    }, 5000); // Or existing timeout duration
+                    }, 5000);
                 }
             }
         });
