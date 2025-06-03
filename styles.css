@@ -540,6 +540,7 @@ body {
     flex-grow: 1; /* Allow content to take available space */
     overflow-wrap: break-word; /* Added for breaking long words */
     white-space: pre-wrap;     /* Added to ensure wrapping and preserve newlines/spaces */
+    min-width: 0; /* Added this line */
     /* padding-right: 0; Remove previous padding-right if delete button is no longer absolute *inside* content area */
 }
 
