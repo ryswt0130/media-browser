@@ -596,10 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(`[MEMO] Error saving memo: `, e);
                 if (saveStatusMessage) {
                     saveStatusMessage.textContent = `Error: ${e.message || '保存に失敗しました'}`;
-                    saveStatusMessage.className = 'error';
-                    saveStatusMessage.classList.add('show');
+                    saveStatusMessage.classList.remove('success'); // Remove success if it was there
+                    saveStatusMessage.classList.add('error');    // Add error class
+                    saveStatusMessage.classList.add('show');     // Add show class
                     setTimeout(() => {
-                        if (saveStatusMessage) saveStatusMessage.classList.remove('show');
+                        if (saveStatusMessage) {
+                            saveStatusMessage.classList.remove('show');
+                            saveStatusMessage.classList.remove('error'); // Also remove specific state class
+                        }
                     }, 5000);
                 }
             }

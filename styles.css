@@ -663,6 +663,14 @@ body {
     border: 1px solid #f5c6cb;
 }
 
+#save-status-message.show {
+    opacity: 1;
+    visibility: visible;
+    /* Transition for opacity is handled by the base #save-status-message rule.
+       Transition for visibility (delay for fade-out) is also in base.
+       When just .show is added, we want opacity to transition to 1 without delay. */
+}
+
 #memo-status-message {
     /* margin-left: 10px; /* Handled by gap in #memo-controls */
     font-size: 0.9em;
