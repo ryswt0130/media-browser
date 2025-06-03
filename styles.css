@@ -491,7 +491,7 @@ body {
 
 #memo-display-area { /* For displaying all saved memo content */
     padding: 8px;
-    background-color: #252526; 
+    background-color: #252526;
     border-radius: 4px;
     white-space: pre-wrap; 
     min-height: 80px; 
@@ -507,6 +507,51 @@ body {
 
 .clickable-timestamp:hover {
     color: #21a1c1; /* Darker or different color on hover */
+}
+
+.memo-entry {
+    position: relative; /* For positioning the delete button */
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #4a4a4a; /* A slightly different border to distinguish entries */
+    border-radius: 4px;
+    background-color: #2f2f2f; /* Slightly different from #memo-display-area's bg if needed, or same */
+}
+
+.memo-entry:last-child {
+    margin-bottom: 0; /* No margin for the last entry */
+}
+
+.memo-entry-content {
+    /* If you need specific styling for the content part of the entry,
+       like controlling its line breaks or spacing before the delete button.
+       For now, it will inherit text color and wrap normally.
+       Make sure it allows for the delete button to be positioned without overlap.
+    */
+    padding-right: 25px; /* Ensure space for the delete button if positioned absolutely inside */
+}
+
+.delete-memo-entry-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #555;
+    color: #ccc;
+    border: 1px solid #666;
+    border-radius: 50%; /* Make it circular */
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 18px; /* Adjust for vertical centering of 'X' */
+    text-align: center;
+    cursor: pointer;
+    padding: 0; /* Remove default padding */
+}
+
+.delete-memo-entry-btn:hover {
+    background-color: #777;
+    color: #fff;
 }
 
 #save-memo-btn:hover,
