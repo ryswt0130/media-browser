@@ -20,9 +20,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 // -------------------------------------
 
+const THUMBNAIL_GENERATION_TIMEOUT = 30000; // 30 seconds
 const thumbnailQueue = [];
 let activeThumbnailWorkers = 0;
-const MAX_CONCURRENT_THUMBNAIL_WORKERS = 1; // Or 3, or 4. Let's start with 2.
+const MAX_CONCURRENT_THUMBNAIL_WORKERS = 2; // Or 3, or 4. Let's start with 2.
 const MEMOS_DIR = path.join(app.getPath('userData'), 'memos');
 
 async function processThumbnailQueue() {
@@ -41,16 +42,47 @@ async function processThumbnailQueue() {
 
     try {
         console.log(`[QUEUE] Calling generateThumbnail for: ${task.filePath}`);
-        // generateThumbnail is already async and returns an object { generatedThumbnailPath, error, details }
-        const thumbResult = await generateThumbnail(task.filePath, task.fileType);
-        console.log(`[QUEUE] generateThumbnail returned for: ${task.filePath}. Result error: ${thumbResult.error}, Path: ${thumbResult.generatedThumbnailPath}`);
 
-        // Update allScannedMediaFiles regardless of request type
-        if (thumbResult.generatedThumbnailPath) {
-            const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === task.filePath);
-            if (fileIndex !== -1) {
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), THUMBNAIL_GENERATION_TIMEOUT)
+        );
+
+        let thumbResult;
+        try {
+            // Race generateThumbnail against the timeout
+            thumbResult = await Promise.race([
+                generateThumbnail(task.filePath, task.fileType),
+                timeoutPromise
+            ]);
+        } catch (e) {
+            // This catch is specifically for the Promise.race rejection (i.e., timeout)
+            if (e.message === 'timeout') {
+                console.error(`[QUEUE] Thumbnail generation timed out for: ${task.filePath}`);
+                thumbResult = { generatedThumbnailPath: null, error: 'timeout', details: `Thumbnail generation timed out after ${THUMBNAIL_GENERATION_TIMEOUT / 1000} seconds.` };
+            } else {
+                // Re-throw other unexpected errors from generateThumbnail if it somehow throws instead of returning an error object
+                // though current generateThumbnail is designed to return errors in its result object.
+                console.error(`[QUEUE] Unexpected error during generateThumbnail race for ${task.filePath}:`, e);
+                thumbResult = { generatedThumbnailPath: null, error: 'unexpected_error', details: e.message };
+            }
+        }
+
+        console.log(`[QUEUE] generateThumbnail (or timeout) returned for: ${task.filePath}. Result error: ${thumbResult.error}, Path: ${thumbResult.generatedThumbnailPath}`);
+
+        // Update allScannedMediaFiles regardless of request type or success/failure
+        // If there was an error (timeout or other), generatedThumbnailPath will be null.
+        const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === task.filePath);
+        if (fileIndex !== -1) {
+            if (thumbResult.generatedThumbnailPath) {
                 allScannedMediaFiles[fileIndex].thumbnailPath = thumbResult.generatedThumbnailPath;
+                // Clear any previous error state if we now have a thumbnail
+                delete allScannedMediaFiles[fileIndex].thumbnailError;
                 console.log(`Updated allScannedMediaFiles for ${task.filePath} with new thumbnail path.`);
+            } else if (thumbResult.error) {
+                // Optionally store error information in allScannedMediaFiles
+                allScannedMediaFiles[fileIndex].thumbnailError = { error: thumbResult.error, details: thumbResult.details };
+                allScannedMediaFiles[fileIndex].thumbnailPath = null; // Ensure path is null on error
+                console.log(`Recorded thumbnail error for ${task.filePath} in allScannedMediaFiles.`);
             }
         }
 
@@ -60,17 +92,15 @@ async function processThumbnailQueue() {
                 console.log(`[QUEUE] Sending 'thumbnail-generated' IPC for: ${task.filePath}, ImgID: ${task.imgIdForRenderer}`);
                 targetWindow.webContents.send('thumbnail-generated', {
                     originalImgId: task.imgIdForRenderer,
-                    filePath: task.filePath, // Send filePath back for context if needed
+                    filePath: task.filePath,
                     ...thumbResult // spread the result: generatedThumbnailPath, error, details
                 });
             } else {
                 console.warn(`Target window for thumbnail result no longer exists or is invalid. Window ID: ${task.windowId}, File: ${task.filePath}`);
             }
         }
-    } catch (error) {
-        console.error(`[QUEUE] CATCH BLOCK error during generateThumbnail for ${task.filePath}: `, error);
-        // If generateThumbnail itself throws an unhandled error (it shouldn't with its current structure)
-        // We still need to ensure the renderer gets a response if it was a renderer request.
+    } catch (error) { // Outer catch: for errors in the try block logic itself, not from generateThumbnail directly
+        console.error(`[QUEUE] CATCH BLOCK error during thumbnail processing logic for ${task.filePath}: `, error);
         if (task.isRendererRequest && task.windowId !== undefined) {
             const targetWindow = BrowserWindow.fromId(task.windowId);
             if (targetWindow && !targetWindow.isDestroyed()) {
@@ -87,7 +117,6 @@ async function processThumbnailQueue() {
         console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers before dec: ${activeThumbnailWorkers}`);
         activeThumbnailWorkers--;
         console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers after dec: ${activeThumbnailWorkers}. Calling processThumbnailQueue recursively.`);
-        // Process next item if any
         processThumbnailQueue(); 
     }
 }
@@ -462,11 +491,12 @@ async function loadAllMediaFromRegisteredFolders() {
         } else {
             // console.log(`Thumbnail not found for ${file.filePath}, will need on-demand generation.`);
         }
-
+        const favoriteStatus = isFavorite(file.filePath);
+        console.log(`[LOAD_ALL_MEDIA] Processing ${file.filePath}, isFavorite: ${favoriteStatus}`);
         return {
             ...file,
             thumbnailPath: thumbnailPath, // Path if exists, null otherwise
-            isFavorite: isFavorite(file.filePath)
+            isFavorite: favoriteStatus // Ensure this line is setting it based on the function call
         };
     });
 
@@ -598,6 +628,7 @@ ipcMain.on('get-current-media-list', async (event) => {
             ...file,
             isFavorite: isFavorite(file.filePath)
         }));
+        console.log(`[GET_CURRENT_MEDIA_LIST] Refreshed favorite statuses. Sending ${allScannedMediaFiles.length} items. Sample favorite status for first item (if any): ${allScannedMediaFiles.length > 0 ? allScannedMediaFiles[0].isFavorite : 'N/A'}`);
     }
     console.log(`Sending current media list of ${allScannedMediaFiles.length} items to renderer.`);
     event.sender.send('current-media-list-loaded', allScannedMediaFiles);
@@ -622,13 +653,26 @@ ipcMain.handle('remove-scanned-folder', async (event, folderPathToRemove) => {
 
 // IPC handler for toggling favorite
 ipcMain.handle('toggle-favorite', async (event, filePath) => {
+  console.log(`[TOGGLE_FAVORITE] Request for: ${filePath}. Current isFavorite: ${isFavorite(filePath)}`);
+  let newIsFavoriteStatus;
   if (isFavorite(filePath)) {
+    console.log(`[TOGGLE_FAVORITE] Removing favorite for: ${filePath}`);
     removeFavorite(filePath);
-    return false; // New status: not favorite
+    newIsFavoriteStatus = false; // New status: not favorite
   } else {
+    console.log(`[TOGGLE_FAVORITE] Adding favorite for: ${filePath}`);
     addFavorite(filePath);
-    return true; // New status: favorite
+    newIsFavoriteStatus = true; // New status: favorite
   }
+
+  const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === filePath);
+  if (fileIndex !== -1) {
+    allScannedMediaFiles[fileIndex].isFavorite = newIsFavoriteStatus; // Use the determined new status
+    console.log(`Updated isFavorite status in allScannedMediaFiles for ${filePath} to ${allScannedMediaFiles[fileIndex].isFavorite}`);
+    console.log(`[TOGGLE_FAVORITE] Successfully updated favorite status for ${filePath} to ${allScannedMediaFiles[fileIndex].isFavorite}. Returning this status to renderer.`);
+  }
+
+  return newIsFavoriteStatus; // Return the new favorite status
 });
 
 // IPC handler for adding to history

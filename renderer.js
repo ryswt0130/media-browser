@@ -212,16 +212,29 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 favButton.innerHTML = itemData.isFavorite ? '★' : '☆'; 
                 favButton.setAttribute('aria-label', itemData.isFavorite ? 'Unmark as favorite' : 'Mark as favorite');
                 favButton.addEventListener('click', async (e) => {
-                    e.stopPropagation(); 
-                    const filePath = itemData.filePath; 
+                    e.stopPropagation();
+                    const filePath = itemData.filePath;
+                    console.log(`[FAV_CLICK_RENDERER] Clicked favorite for: ${filePath}. Current itemData.isFavorite: ${itemData.isFavorite}`);
                     try {
                         const newIsFavorite = await window.electronAPI.invoke('toggle-favorite', filePath);
+                        console.log(`[FAV_CLICK_RENDERER] Received newIsFavorite: ${newIsFavorite} for ${filePath}.`);
+
                         favButton.innerHTML = newIsFavorite ? '★' : '☆';
                         favButton.setAttribute('aria-label', newIsFavorite ? 'Unmark as favorite' : 'Mark as favorite');
+
                         const masterListItem = currentAllMediaItems.find(m => m.filePath === filePath);
-                        if (masterListItem) masterListItem.isFavorite = newIsFavorite;
-                        itemData.isFavorite = newIsFavorite; 
+                        if (masterListItem) {
+                            console.log(`[FAV_CLICK_RENDERER] Updating masterListItem.isFavorite from ${masterListItem.isFavorite} to ${newIsFavorite} for ${filePath}`);
+                            masterListItem.isFavorite = newIsFavorite;
+                        } else {
+                            console.warn(`[FAV_CLICK_RENDERER] masterListItem not found for ${filePath}`);
+                        }
+
+                        console.log(`[FAV_CLICK_RENDERER] Updating itemData.isFavorite from ${itemData.isFavorite} to ${newIsFavorite} for ${filePath}`);
+                        itemData.isFavorite = newIsFavorite;
+
                         if (showingOnlyFavorites && !newIsFavorite) {
+                            console.log(`[FAV_CLICK_RENDERER] In favorites view and item un-favorited. Calling renderMediaGrid() for ${filePath}`);
                             renderMediaGrid();
                         }
                     } catch (error) {
@@ -252,7 +265,13 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
 
 // Function to decide what to render based on the current filter
 async function renderMediaGrid() { // Made async to handle potential await for history
+    let currentViewName = showingOnlyFavorites ? "Favorites" : showingOnlyHistory ? "History" : showingOnlyMemos ? "Memos" : "All Media";
+    console.log(`[RENDER_MEDIA_GRID] Called. Current view: ${currentViewName}. Total items in currentAllMediaItems: ${currentAllMediaItems.length}.`);
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    if (searchTerm) {
+        console.log(`[RENDER_MEDIA_GRID] Applying search term: "${searchTerm}"`);
+    }
+
     let itemsToDisplay = currentAllMediaItems; // Default to all items
     let messagePrefix = "Loaded";
 
@@ -325,6 +344,7 @@ async function renderMediaGrid() { // Made async to handle potential await for h
         }
     }
     
+    console.log(`[RENDER_MEDIA_GRID] Number of items to display after filtering/search: ${itemsToDisplay.length}. Calling populateMediaGrid.`);
     populateMediaGrid(itemsToDisplay, messagePrefix, showingOnlyMemos);
 }
 
@@ -332,14 +352,20 @@ async function renderMediaGrid() { // Made async to handle potential await for h
 
 // Listener for newly scanned files
 window.electronAPI.on('media-files-loaded', (files) => {
-    console.log('Received newly scanned media files:', files);
+    console.log(`[RENDERER_EVENT] 'media-files-loaded' received with ${files.length} files.`);
+    if (files.length > 0) {
+        console.log(`[RENDERER_EVENT] Sample favorite status for first item: ${files[0].filePath} - isFavorite: ${files[0].isFavorite}`);
+    }
     currentAllMediaItems = files; // Store the full list
     renderMediaGrid(); // Render based on current filter
 });
 
 // Listener for currently stored media list on page load
 window.electronAPI.on('current-media-list-loaded', (files) => {
-    console.log('Received current media list from main process:', files);
+    console.log(`[RENDERER_EVENT] 'current-media-list-loaded' received with ${files.length} files.`);
+    if (files.length > 0) {
+        console.log(`[RENDERER_EVENT] Sample favorite status for first item: ${files[0].filePath} - isFavorite: ${files[0].isFavorite}`);
+    }
     currentAllMediaItems = files; // Store the full list
     renderMediaGrid(); // Render based on current filter
 });
