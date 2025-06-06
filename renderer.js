@@ -418,10 +418,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
 
-    // Set initial text for toggle buttons (depends on toggleFavoritesViewBtn, toggleHistoryViewBtn)
-    if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
-    if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
-
     // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
         const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -524,9 +520,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showingOnlyFavorites = !showingOnlyFavorites;
             if (showingOnlyFavorites) {
                 showingOnlyHistory = false;
-                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
+                // if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History'; // Line removed
             }
-            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
+            // toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites'; // Line removed
             renderMediaGrid();
         });
     } else {
@@ -538,9 +534,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showingOnlyHistory = !showingOnlyHistory;
             if (showingOnlyHistory) {
                 showingOnlyFavorites = false;
-                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+                // if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites'; // Line removed
             }
-            toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
+            // toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History'; // Line removed
             await renderMediaGrid();
         });
     } else {
@@ -563,12 +559,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (showingOnlyMemos) {
                 showingOnlyFavorites = false; // Deactivate other views
                 showingOnlyHistory = false;
-                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
-                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
-                toggleMemoListViewBtn.textContent = 'Show All Media';
+                // if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites'; // Line removed
+                // if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History'; // Line removed
+                // toggleMemoListViewBtn.textContent = 'Show All Media'; // Line removed
                 if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
             } else {
-                toggleMemoListViewBtn.textContent = 'Show Memos';
+                // toggleMemoListViewBtn.textContent = 'Show Memos'; // Line removed
                 if (memoSortControls) memoSortControls.style.display = 'none';
             }
             renderMediaGrid();
