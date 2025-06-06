@@ -483,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialFileType = params.get('fileType');
     const initialIsFavorite = params.get('isFavorite') === 'true';
     const initialAppName = params.get('appName') || "My Media Browser";
+    const currentSourceView = params.get('sourceView') || 'all'; // Get sourceView, default to 'all'
 
     if (appTitleHeader) {
         appTitleHeader.textContent = initialAppName; // Use initialAppName here
@@ -531,7 +532,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Back button
     backToGridBtn.addEventListener('click', () => {
-        window.location.href = 'index.html';
+        // currentSourceView (defined above in DOMContentLoaded) should be accessible here
+        window.location.href = `index.html?view=${currentSourceView}`;
     });
 
     // Memo Save Button Event Listener

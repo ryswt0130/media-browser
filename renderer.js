@@ -418,6 +418,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
 
+    // Set initial text for toggle buttons (depends on toggleFavoritesViewBtn, toggleHistoryViewBtn)
+    if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
+    if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
+
     // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
         const savedColor = localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY);
@@ -440,6 +444,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get App Name from query params and set header (depends on appTitleHeader)
     const params = new URLSearchParams(window.location.search);
     const appName = params.get('appName') || "My Media Browser"; // Fallback
+    const openView = new URLSearchParams(window.location.search).get('view');
+
+    // Deactivate all view buttons and hide memo sort controls initially
+    // This ensures a clean state before applying the 'openView' parameter.
+    if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
+    if (toggleHistoryViewBtn) toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
+    if (toggleMemoListViewBtn) toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
+    if (memoSortControls) memoSortControls.style.display = 'none';
+
+    // Reset all view flags. These will be updated by the openView logic if applicable.
+    showingOnlyFavorites = false;
+    showingOnlyHistory = false;
+    showingOnlyMemos = false;
+
+    if (openView === 'memos') {
+        showingOnlyMemos = true;
+        if (toggleMemoListViewBtn) toggleMemoListViewBtn.classList.add('sidebar-btn-active');
+        if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
+    } else if (openView === 'favorites') {
+        showingOnlyFavorites = true;
+        if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.classList.add('sidebar-btn-active');
+    } else if (openView === 'history') {
+        showingOnlyHistory = true;
+        if (toggleHistoryViewBtn) toggleHistoryViewBtn.classList.add('sidebar-btn-active');
+    }
+    // If openView is 'all' or null/undefined, all flags remain false, and no buttons are active.
+
     if (appTitleHeader) {
         appTitleHeader.textContent = appName;
         appTitleHeader.addEventListener('click', () => {
@@ -492,14 +523,10 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleFavoritesViewBtn.addEventListener('click', () => {
             showingOnlyFavorites = !showingOnlyFavorites;
             if (showingOnlyFavorites) {
-                toggleFavoritesViewBtn.classList.add('sidebar-btn-active');
-                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
-                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
                 showingOnlyHistory = false;
-                showingOnlyMemos = false;
-            } else {
-                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
+                if (toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
             }
+            toggleFavoritesViewBtn.textContent = showingOnlyFavorites ? 'Show All Media' : 'Show Favorites';
             renderMediaGrid();
         });
     } else {
@@ -510,14 +537,10 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleHistoryViewBtn.addEventListener('click', async () => {
             showingOnlyHistory = !showingOnlyHistory;
             if (showingOnlyHistory) {
-                toggleHistoryViewBtn.classList.add('sidebar-btn-active');
-                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
-                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
                 showingOnlyFavorites = false;
-                showingOnlyMemos = false;
-            } else {
-                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
+                if (toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
             }
+            toggleHistoryViewBtn.textContent = showingOnlyHistory ? 'Show All Media' : 'Show History';
             await renderMediaGrid();
         });
     } else {
@@ -538,14 +561,14 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleMemoListViewBtn.addEventListener('click', () => {
             showingOnlyMemos = !showingOnlyMemos;
             if (showingOnlyMemos) {
-                toggleMemoListViewBtn.classList.add('sidebar-btn-active');
-                toggleFavoritesViewBtn.classList.remove('sidebar-btn-active');
-                toggleHistoryViewBtn.classList.remove('sidebar-btn-active');
-                showingOnlyFavorites = false;
+                showingOnlyFavorites = false; // Deactivate other views
                 showingOnlyHistory = false;
-                if (memoSortControls) memoSortControls.style.display = 'block';
+                if(toggleFavoritesViewBtn) toggleFavoritesViewBtn.textContent = 'Show Favorites';
+                if(toggleHistoryViewBtn) toggleHistoryViewBtn.textContent = 'Show History';
+                toggleMemoListViewBtn.textContent = 'Show All Media';
+                if (memoSortControls) memoSortControls.style.display = 'block'; // Or 'flex'
             } else {
-                toggleMemoListViewBtn.classList.remove('sidebar-btn-active');
+                toggleMemoListViewBtn.textContent = 'Show Memos';
                 if (memoSortControls) memoSortControls.style.display = 'none';
             }
             renderMediaGrid();
@@ -678,7 +701,7 @@ function displayRegisteredFolders(foldersArray) {
 
         const removeBtn = document.createElement('button');
         removeBtn.classList.add('remove-folder-btn');
-        removeBtn.textContent = '削除';
+        removeBtn.textContent = 'Remove';
         removeBtn.setAttribute('data-folderpath', folderEntry.path);
 
         removeBtn.addEventListener('click', async (e) => {
@@ -708,7 +731,7 @@ function displayRegisteredFolders(foldersArray) {
                     removeBtn.disabled = false;
                     checkbox.disabled = false;
                     li.style.opacity = 1;
-                    removeBtn.textContent = '削除';
+                    removeBtn.textContent = 'Remove';
                 }
             } catch (error) {
                 console.error('Error invoking remove-scanned-folder:', error);
@@ -716,7 +739,7 @@ function displayRegisteredFolders(foldersArray) {
                 removeBtn.disabled = false;
                 checkbox.disabled = false;
                 li.style.opacity = 1;
-                removeBtn.textContent = '削除';
+                removeBtn.textContent = 'Remove';
             }
         });
 

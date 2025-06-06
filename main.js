@@ -522,15 +522,17 @@ ipcMain.on('scan-directory', async (event, directoryPath) => {
 });
 
 // Handle request to open a specific media file
-ipcMain.on('open-media', (event, { filePath, fileType }) => { // isFavorite status will be determined by mediaRenderer
+ipcMain.on('open-media', (event, { filePath, fileType, sourceView: rawSourceView }) => {
   const win = BrowserWindow.getFocusedWindow();
   if (win) {
+    const sourceView = rawSourceView || 'all'; // Default to 'all'
     win.loadFile(path.join(__dirname, 'media.html'), {
       query: {
         filePath: filePath,
         fileType: fileType,
         isFavorite: isFavorite(filePath), // Pass favorite status directly
-        appName: APP_NAME // Pass app name
+        appName: APP_NAME, // Pass app name
+        sourceView: sourceView
       }
     });
   }
