@@ -378,7 +378,7 @@ window.electronAPI.on('current-media-list-loaded', (files) => {
     setTimeout(() => {
         console.log('%c[DEBUG_SCROLL] setTimeout for restoreScrollPosition TRIGGERED. Calling restoreScrollPosition now.', 'color: orange; font-weight: bold;');
         restoreScrollPosition();
-    }, 500);
+    }, 1500);
 });
 
 function restoreScrollPosition() {
@@ -399,6 +399,8 @@ function restoreScrollPosition() {
                 return;
             }
 
+            console.log(`[SCROLL_RESTORE]   document.body.scrollHeight: ${document.body.scrollHeight}`);
+            console.log(`[SCROLL_RESTORE]   window.innerHeight: ${window.innerHeight}`);
             console.log(`[SCROLL_RESTORE] Attempting to scroll window to: 0, ${savedScrollPos}`);
             window.scrollTo(0, savedScrollPos);
 
