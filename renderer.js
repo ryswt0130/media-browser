@@ -246,6 +246,12 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 // Click listener for standard media items
                 item.addEventListener('click', () => {
                     if (itemData && itemData.filePath && itemData.fileType) { 
+                        // Save scroll position before navigating
+                        if (mediaGrid) { // Ensure mediaGrid is available
+                            sessionStorage.setItem('mediaGridScrollPos', mediaGrid.scrollTop.toString());
+                            console.log(`[SCROLL_SAVE] Saved scroll position: ${mediaGrid.scrollTop}`);
+                        }
+
                         console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
                         window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
                     } else {
@@ -366,9 +372,25 @@ window.electronAPI.on('current-media-list-loaded', (files) => {
     if (files.length > 0) {
         console.log(`[RENDERER_EVENT] Sample favorite status for first item: ${files[0].filePath} - isFavorite: ${files[0].isFavorite}`);
     }
-    currentAllMediaItems = files; // Store the full list
-    renderMediaGrid(); // Render based on current filter
+    currentAllMediaItems = files;
+    renderMediaGrid(); // Grid is populated by this call
+
+    // Attempt to restore scroll position AFTER the grid has been rendered
+    // Using a small timeout to ensure the DOM has updated and scrollHeight is correct.
+    setTimeout(restoreScrollPosition, 100);
 });
+
+function restoreScrollPosition() {
+    if (mediaGrid) { // Ensure mediaGrid is available
+        const savedScrollPos = sessionStorage.getItem('mediaGridScrollPos');
+        if (savedScrollPos !== null) {
+            console.log(`[SCROLL_RESTORE] Found saved scroll position: ${savedScrollPos}`);
+            mediaGrid.scrollTop = parseInt(savedScrollPos, 10);
+            sessionStorage.removeItem('mediaGridScrollPos'); // Important: remove after use
+            console.log(`[SCROLL_RESTORE] Applied scroll position ${mediaGrid.scrollTop} and removed from session storage.`);
+        }
+    }
+}
 
 // Listener for generated thumbnails (from on-demand requests)
 window.electronAPI.on('thumbnail-generated', (result) => {
