@@ -209,20 +209,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 filenamePara.textContent = displayFileName;
                 item.appendChild(filenamePara);
 
-                console.log(`%c[DEBUG_SCROLL] Attempting to add click listener for item: ${itemData.filePath}`, 'color: blue; font-weight: bold;');
-                item.addEventListener('click', () => {
-                    console.log(`%c[DEBUG_SCROLL] Click event fired for item: ${item.getAttribute('data-filepath')}`, 'color: green; font-weight: bold;');
-
-                    if (itemData && itemData.filePath && itemData.fileType) {
-                        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-                        sessionStorage.setItem('mediaGridScrollPos', scrollY.toString());
-                        console.log(`[SCROLL_SAVE] Saved window scroll position: ${scrollY}`);
-                        console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
-                        window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
-                    } else {
-                        console.error('Cannot open media: file data is incomplete.', itemData);
-                    }
-                });
+                // Click listener for standard media items is now handled by event delegation on mediaGrid
 
                 const favButton = document.createElement('button');
                 favButton.classList.add('favorite-btn');
@@ -390,32 +377,49 @@ function restoreScrollPosition() {
             console.log(`[SCROLL_RESTORE] Attempting to restore scroll.`);
             console.log(`[SCROLL_RESTORE]   Saved position from sessionStorage: ${savedScrollPos}`);
             console.log(`[SCROLL_RESTORE]   mediaGrid.scrollTop (before): ${mediaGrid.scrollTop}`);
+            console.log(`[SCROLL_RESTORE]   mediaGrid.scrollTop (before): ${mediaGrid.scrollTop}`);
             console.log(`[SCROLL_RESTORE]   mediaGrid.scrollHeight: ${mediaGrid.scrollHeight}`);
             console.log(`[SCROLL_RESTORE]   mediaGrid.clientHeight: ${mediaGrid.clientHeight}`);
 
+
             if (isNaN(savedScrollPos)) {
                 console.error(`[SCROLL_RESTORE] Saved scroll position is NaN. Aborting restore.`);
-                sessionStorage.removeItem('mediaGridScrollPos'); // Remove invalid data
+                sessionStorage.removeItem('mediaGridScrollPos');
                 return;
             }
 
-            console.log(`[SCROLL_RESTORE]   document.body.scrollHeight: ${document.body.scrollHeight}`);
-            console.log(`[SCROLL_RESTORE]   window.innerHeight: ${window.innerHeight}`);
-            console.log(`[SCROLL_RESTORE] Attempting to scroll window to: 0, ${savedScrollPos}`);
-            window.scrollTo(0, savedScrollPos);
+            const docScrollHeight = document.body.scrollHeight;
+            const winInnerHeight = window.innerHeight;
+            console.log(`[SCROLL_RESTORE]   document.body.scrollHeight: ${docScrollHeight}`);
+            console.log(`[SCROLL_RESTORE]   window.innerHeight: ${winInnerHeight}`);
 
-            // Log after a very brief delay to allow the browser to process the scroll change
-            setTimeout(() => {
-                const newScrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-                console.log(`[SCROLL_RESTORE]   window.pageYOffset (after attempt): ${newScrollY}`);
-                if (newScrollY === savedScrollPos) {
-                    console.log(`[SCROLL_RESTORE]   Successfully restored window scroll position.`);
-                } else {
-                    console.warn(`[SCROLL_RESTORE]   Window scroll position after attempt (${newScrollY}) does not match saved position (${savedScrollPos}).`);
+            if (docScrollHeight > winInnerHeight) { // Check if the document is actually scrollable
+                if (savedScrollPos > (docScrollHeight - winInnerHeight)) {
+                    console.warn(`[SCROLL_RESTORE] Saved scroll position (${savedScrollPos}) is beyond the current maximum scrollable position (${docScrollHeight - winInnerHeight}). Clamping to max.`);
+                    // Optionally, you could clamp savedScrollPos here:
+                    // savedScrollPos = docScrollHeight - winInnerHeight;
                 }
-            }, 0); // Using 0ms timeout to log after current event loop cycle
 
-            sessionStorage.removeItem('mediaGridScrollPos'); // Important: remove after use
+                console.log(`[SCROLL_RESTORE] Attempting to scroll window to: 0, ${savedScrollPos}`);
+                window.scrollTo(0, savedScrollPos);
+
+                setTimeout(() => {
+                    const newScrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                    console.log(`[SCROLL_RESTORE]   window.pageYOffset (after attempt): ${newScrollY}`);
+                    if (newScrollY === savedScrollPos) {
+                        console.log(`[SCROLL_RESTORE]   Successfully restored window scroll position.`);
+                    } else {
+                        console.warn(`[SCROLL_RESTORE]   Window scroll position after attempt (${newScrollY}) does not match saved position (${savedScrollPos}).`);
+                    }
+                }, 0);
+            } else {
+                console.warn(`[SCROLL_RESTORE] Document is not scrollable (scrollHeight <= window.innerHeight). Scroll to ${savedScrollPos} aborted.`);
+                // If not scrollable, but savedScrollPos is 0, it's effectively "restored".
+                if (savedScrollPos === 0) {
+                     console.log(`[SCROLL_RESTORE]   Successfully "restored" to scroll position 0 as document is not scrollable and saved position is 0.`);
+                }
+            }
+            sessionStorage.removeItem('mediaGridScrollPos');
             console.log(`[SCROLL_RESTORE] Removed 'mediaGridScrollPos' from session storage.`);
         } else {
             // console.log("[SCROLL_RESTORE] No saved scroll position found in session storage."); // Optional: for verbosity
@@ -498,6 +502,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
+
+    if (mediaGrid) {
+        mediaGrid.addEventListener('click', (event) => {
+            const clickedItemElement = event.target.closest('.media-item');
+
+            if (clickedItemElement && !clickedItemElement.classList.contains('memo-list-item')) { // Ensure it's a standard media item
+                console.log('%c[DEBUG_SCROLL_DELEGATION] Delegated click event fired on .media-item element.', 'color: green; font-weight: bold;');
+
+                const filePath = clickedItemElement.getAttribute('data-filepath');
+                const fileType = clickedItemElement.getAttribute('data-filetype');
+
+                if (filePath && fileType) {
+                    // Save scroll position
+                    const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                    sessionStorage.setItem('mediaGridScrollPos', scrollY.toString());
+                    console.log(`[SCROLL_SAVE_DELEGATION] Saved window scroll position: ${scrollY}`);
+
+                    // Open media
+                    console.log(`Requesting to open media (delegated): ${fileType} - ${filePath}`);
+                    window.electronAPI.send('open-media', { filePath: filePath, fileType: fileType });
+                } else {
+                    console.error('[ERROR_DELEGATION] Clicked media item is missing data-filepath or data-filetype.', clickedItemElement);
+                }
+            }
+        });
+    } else {
+        console.error("Could not find mediaGrid element to attach delegated click listener.");
+    }
 
     // Initialize Background Color (depends on backgroundColorPicker)
     if (backgroundColorPicker) {
