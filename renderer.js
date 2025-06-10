@@ -92,9 +92,14 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
     // If searchTerm is active and filesToDisplay is empty, statusMessage is already set by renderMediaGrid.
 
 
-    filesToDisplay.forEach((file, index) => { // 'file' can be a media file object or a memo object
-        try { 
-            const itemData = file; // Use itemData to refer to either type of object
+    filesToDisplay.forEach((file, index) => {
+        try {
+            const itemData = file;
+            // New Log 1: Log the item being processed
+            console.log(`%c[DEBUG_POPULATE] Processing item [${index}]:`, 'color: teal;', itemData); // Logs the whole object
+
+            // New Log 2: Log before the if/else condition
+            console.log(`%c[DEBUG_POPULATE] For item [${index}], isMemoView: ${isMemoView}, itemData.filePath: ${itemData.filePath}`, 'color: brown;');
 
             const item = document.createElement('div');
             item.classList.add('media-item');
@@ -104,7 +109,7 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
 
             if (isMemoView) { // Note: isMemoView is passed to populateMediaGrid
                 item.classList.add('memo-list-item');
-                if (!itemData || !itemData.memoFileName || !itemData.mediaFileBaseName) { // Basic check for memo object structure
+                if (!itemData || !itemData.memoFileName || !itemData.mediaFileBaseName) {
                     console.error('Skipping invalid memo object:', itemData);
                     return;
                 }
@@ -112,81 +117,25 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                 item.setAttribute('data-filepath', itemData.mediaFilePath || itemData.memoFileName); 
                 item.setAttribute('data-filetype', itemData.fileType || 'memo');
                 uniqueImgIdBase = itemData.mediaFilePath || itemData.memoFileName;
-            } else { // Standard media file
-                if (!itemData || typeof itemData.filePath !== 'string') {
-                    console.error('Skipping invalid media file object:', itemData);
-                    return;
+
+                // Image for memo (placeholder or associated media thumb)
+                const img = document.createElement('img');
+                const uniqueImgId = `thumb-img-${uniqueImgIdBase.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
+                img.id = uniqueImgId;
+                if (itemData.thumbnailPath) {
+                    img.src = `file://${itemData.thumbnailPath}`;
+                    img.alt = displayFileName;
+                } else {
+                    img.classList.add('thumbnail-placeholder');
+                    img.alt = `Memo: ${displayFileName} (No Preview Available)`;
                 }
-                displayFileName = itemData.filePath.split(/\/|\\/).pop() || 'Unnamed File';
-                item.setAttribute('data-filepath', itemData.filePath);
-                item.setAttribute('data-filetype', itemData.fileType);
-                uniqueImgIdBase = itemData.filePath;
-            }
+                img.onerror = function() { /* existing onerror logic */ };
+                item.appendChild(img);
 
-            const img = document.createElement('img');
-            const uniqueImgId = `thumb-img-${uniqueImgIdBase.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`; // Make ID more robust
-            img.id = uniqueImgId;
+                const filenamePara = document.createElement('p');
+                filenamePara.textContent = displayFileName;
+                item.appendChild(filenamePara);
 
-            if (itemData.thumbnailPath) {
-                img.src = `file://${itemData.thumbnailPath}`;
-                img.alt = displayFileName;
-            } else if (!isMemoView) { // Standard media file missing thumbnail
-                img.classList.add('thumbnail-loading');
-                img.alt = "Loading thumbnail...";
-                (async () => { // IIFE for async operation
-                    try {
-                        if (!window.electronAPI) {
-                            console.error("electronAPI not found for on-demand thumbnail for file:", itemData.filePath);
-                            img.alt = "API Error"; 
-                            img.classList.remove('thumbnail-loading');
-                            img.classList.add('thumbnail-error');
-                            return; 
-                        }
-                        window.electronAPI.send('request-thumbnail', {
-                            filePath: itemData.filePath,
-                            fileType: itemData.fileType,
-                            imgIdForRenderer: uniqueImgId
-                        });
-                    } catch (error) { 
-                        console.error('Error in on-demand thumbnail IIFE for', itemData.filePath, error);
-                        const imgToUpdateOnError = document.getElementById(uniqueImgId);
-                        if (imgToUpdateOnError) {
-                            const parent = imgToUpdateOnError.parentElement;
-                            if (parent) { 
-                               const existingMsg = parent.querySelector('.thumbnail-message-overlay');
-                               if (existingMsg) existingMsg.remove();
-                            }
-                            imgToUpdateOnError.classList.remove('thumbnail-loading');
-                            imgToUpdateOnError.classList.add('thumbnail-error');
-                            imgToUpdateOnError.alt = "Error triggering thumbnail load";
-                        }
-                    }
-                })();
-            } else { // Memo item without an associated media thumbnail
-                 img.classList.add('thumbnail-placeholder'); 
-                 img.alt = `Memo: ${displayFileName} (No Preview Available)`;
-                 // Default/placeholder image could be set via CSS for .thumbnail-placeholder
-            }
-
-            img.onerror = function() {
-                 if (!this.classList.contains('thumbnail-error') && !this.classList.contains('thumbnail-loading')) {
-                    console.error(`Error loading image src: ${this.src}`);
-                    this.classList.add('thumbnail-error');
-                    this.alt = 'Failed to load image';
-                    const parent = this.parentElement;
-                    if (parent) {
-                        const existingMsg = parent.querySelector('.thumbnail-message-overlay');
-                        if (existingMsg) existingMsg.remove();
-                    }
-                }
-            };
-            item.appendChild(img);
-
-            const filenamePara = document.createElement('p');
-            filenamePara.textContent = displayFileName;
-            item.appendChild(filenamePara);
-
-            if (isMemoView) {
                 const datePara = document.createElement('p');
                 datePara.classList.add('memo-item-date'); 
                 datePara.textContent = `Modified: ${new Date(itemData.lastModifiedDate).toLocaleDateString()} ${new Date(itemData.lastModifiedDate).toLocaleTimeString()}`;
@@ -197,16 +146,85 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                         window.electronAPI.send('open-media', { 
                             filePath: itemData.mediaFilePath, 
                             fileType: itemData.fileType,
-                            // isFavorite status is handled by main process for open-media
                         });
                     } else {
                         console.warn('[MEMO LIST CLICK] Cannot open media, path or type missing for memo:', itemData);
                         alert('Associated media file not found or type is unknown. Cannot open.');
                     }
                 });
-                // No favorite button for memo list items
-            } else {
-                // Existing logic for media items (favorite button)
+            } else { // Standard media file
+                if (!itemData || typeof itemData.filePath !== 'string') {
+                    console.error('[POPULATE_GRID_ERROR] Skipping invalid media file object (filePath issue):', itemData);
+                    return;
+                }
+                displayFileName = itemData.filePath.split(/\/|\\/).pop() || 'Unnamed File';
+                item.setAttribute('data-filepath', itemData.filePath);
+                item.setAttribute('data-filetype', itemData.fileType);
+                uniqueImgIdBase = itemData.filePath;
+
+                const img = document.createElement('img');
+                const uniqueImgId = `thumb-img-${uniqueImgIdBase.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
+                img.id = uniqueImgId;
+
+                if (itemData.thumbnailPath) {
+                    img.src = `file://${itemData.thumbnailPath}`;
+                    img.alt = displayFileName;
+                } else { // Standard media file missing thumbnail
+                    img.classList.add('thumbnail-loading');
+                    img.alt = "Loading thumbnail...";
+                    (async () => {
+                        try {
+                            if (!window.electronAPI) {
+                                console.error("electronAPI not found for on-demand thumbnail for file:", itemData.filePath);
+                                img.alt = "API Error";
+                                img.classList.remove('thumbnail-loading');
+                                img.classList.add('thumbnail-error');
+                                return;
+                            }
+                            window.electronAPI.send('request-thumbnail', {
+                                filePath: itemData.filePath,
+                                fileType: itemData.fileType,
+                                imgIdForRenderer: uniqueImgId
+                            });
+                        } catch (error) {
+                            console.error('Error in on-demand thumbnail IIFE for', itemData.filePath, error);
+                            const imgToUpdateOnError = document.getElementById(uniqueImgId);
+                            if (imgToUpdateOnError) {
+                                const parent = imgToUpdateOnError.parentElement;
+                                if (parent) {
+                                   const existingMsg = parent.querySelector('.thumbnail-message-overlay');
+                                   if (existingMsg) existingMsg.remove();
+                                }
+                                imgToUpdateOnError.classList.remove('thumbnail-loading');
+                                imgToUpdateOnError.classList.add('thumbnail-error');
+                                imgToUpdateOnError.alt = "Error triggering thumbnail load";
+                            }
+                        }
+                    })();
+                }
+                img.onerror = function() { /* existing onerror logic */ };
+                item.appendChild(img);
+
+                const filenamePara = document.createElement('p');
+                filenamePara.textContent = displayFileName;
+                item.appendChild(filenamePara);
+
+                console.log(`%c[DEBUG_SCROLL] Attempting to add click listener for item: ${itemData.filePath}`, 'color: blue; font-weight: bold;');
+                item.addEventListener('click', () => {
+                    console.log(`%c[DEBUG_SCROLL] Click event fired for item: ${item.getAttribute('data-filepath')}`, 'color: green; font-weight: bold;');
+
+                    if (itemData && itemData.filePath && itemData.fileType) {
+                        if (mediaGrid) {
+                            sessionStorage.setItem('mediaGridScrollPos', mediaGrid.scrollTop.toString());
+                            console.log(`[SCROLL_SAVE] Saved scroll position: ${mediaGrid.scrollTop}`);
+                        }
+                        console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
+                        window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
+                    } else {
+                        console.error('Cannot open media: file data is incomplete.', itemData);
+                    }
+                });
+
                 const favButton = document.createElement('button');
                 favButton.classList.add('favorite-btn');
                 favButton.innerHTML = itemData.isFavorite ? '★' : '☆'; 
@@ -218,7 +236,6 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     try {
                         const newIsFavorite = await window.electronAPI.invoke('toggle-favorite', filePath);
                         console.log(`[FAV_CLICK_RENDERER] Received newIsFavorite: ${newIsFavorite} for ${filePath}.`);
-
                         favButton.innerHTML = newIsFavorite ? '★' : '☆';
                         favButton.setAttribute('aria-label', newIsFavorite ? 'Unmark as favorite' : 'Mark as favorite');
 
@@ -229,7 +246,6 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                         } else {
                             console.warn(`[FAV_CLICK_RENDERER] masterListItem not found for ${filePath}`);
                         }
-
                         console.log(`[FAV_CLICK_RENDERER] Updating itemData.isFavorite from ${itemData.isFavorite} to ${newIsFavorite} for ${filePath}`);
                         itemData.isFavorite = newIsFavorite;
 
@@ -242,27 +258,10 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     }
                 });
                 item.appendChild(favButton);
-
-                // Click listener for standard media items
-                item.addEventListener('click', () => {
-                    if (itemData && itemData.filePath && itemData.fileType) { 
-                        // Save scroll position before navigating
-                        if (mediaGrid) { // Ensure mediaGrid is available
-                            sessionStorage.setItem('mediaGridScrollPos', mediaGrid.scrollTop.toString());
-                            console.log(`[SCROLL_SAVE] Saved scroll position: ${mediaGrid.scrollTop}`);
-                        }
-
-                        console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
-                        window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
-                    } else {
-                        console.error('Cannot open media: file data is incomplete.', itemData);
-                    }
-                });
             }
             mediaGrid.appendChild(item);
-
         } catch (error) { 
-            console.error('Error processing item for grid display:', file, error);
+            console.error(`%c[DEBUG_POPULATE_ERROR] Error processing item [${index}]:`, 'color: red; font-weight: bold;', file, error);
         }
     });
 }
@@ -377,18 +376,49 @@ window.electronAPI.on('current-media-list-loaded', (files) => {
 
     // Attempt to restore scroll position AFTER the grid has been rendered
     // Using a small timeout to ensure the DOM has updated and scrollHeight is correct.
-    setTimeout(restoreScrollPosition, 100);
+    setTimeout(() => {
+        console.log('%c[DEBUG_SCROLL] setTimeout for restoreScrollPosition TRIGGERED. Calling restoreScrollPosition now.', 'color: orange; font-weight: bold;');
+        restoreScrollPosition();
+    }, 500);
 });
 
 function restoreScrollPosition() {
+    console.log('%c[DEBUG_SCROLL] restoreScrollPosition function CALLED.', 'color: purple; font-weight: bold;');
     if (mediaGrid) { // Ensure mediaGrid is available
-        const savedScrollPos = sessionStorage.getItem('mediaGridScrollPos');
-        if (savedScrollPos !== null) {
-            console.log(`[SCROLL_RESTORE] Found saved scroll position: ${savedScrollPos}`);
-            mediaGrid.scrollTop = parseInt(savedScrollPos, 10);
+        const savedScrollPosString = sessionStorage.getItem('mediaGridScrollPos');
+        if (savedScrollPosString !== null) {
+            const savedScrollPos = parseInt(savedScrollPosString, 10);
+            console.log(`[SCROLL_RESTORE] Attempting to restore scroll.`);
+            console.log(`[SCROLL_RESTORE]   Saved position from sessionStorage: ${savedScrollPos}`);
+            console.log(`[SCROLL_RESTORE]   mediaGrid.scrollTop (before): ${mediaGrid.scrollTop}`);
+            console.log(`[SCROLL_RESTORE]   mediaGrid.scrollHeight: ${mediaGrid.scrollHeight}`);
+            console.log(`[SCROLL_RESTORE]   mediaGrid.clientHeight: ${mediaGrid.clientHeight}`);
+
+            if (isNaN(savedScrollPos)) {
+                console.error(`[SCROLL_RESTORE] Saved scroll position is NaN. Aborting restore.`);
+                sessionStorage.removeItem('mediaGridScrollPos'); // Remove invalid data
+                return;
+            }
+
+            mediaGrid.scrollTop = savedScrollPos;
+
+            // Log after a very brief delay to allow the browser to process the scrollTop change
+            setTimeout(() => {
+                console.log(`[SCROLL_RESTORE]   mediaGrid.scrollTop (after attempt): ${mediaGrid.scrollTop}`);
+                if (mediaGrid.scrollTop === savedScrollPos) {
+                    console.log(`[SCROLL_RESTORE]   Successfully restored scroll position.`);
+                } else {
+                    console.warn(`[SCROLL_RESTORE]   Scroll position after attempt (${mediaGrid.scrollTop}) does not match saved position (${savedScrollPos}). This might happen if content height is insufficient or due to other constraints.`);
+                }
+            }, 0); // Using 0ms timeout to log after current event loop cycle
+
             sessionStorage.removeItem('mediaGridScrollPos'); // Important: remove after use
-            console.log(`[SCROLL_RESTORE] Applied scroll position ${mediaGrid.scrollTop} and removed from session storage.`);
+            console.log(`[SCROLL_RESTORE] Removed 'mediaGridScrollPos' from session storage.`);
+        } else {
+            // console.log("[SCROLL_RESTORE] No saved scroll position found in session storage."); // Optional: for verbosity
         }
+    } else {
+        console.warn("[SCROLL_RESTORE] mediaGrid element not found.");
     }
 }
 
