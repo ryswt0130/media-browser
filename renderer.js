@@ -214,10 +214,9 @@ function populateMediaGrid(filesToDisplay, messagePrefix = "Found", isMemoView =
                     console.log(`%c[DEBUG_SCROLL] Click event fired for item: ${item.getAttribute('data-filepath')}`, 'color: green; font-weight: bold;');
 
                     if (itemData && itemData.filePath && itemData.fileType) {
-                        if (mediaGrid) {
-                            sessionStorage.setItem('mediaGridScrollPos', mediaGrid.scrollTop.toString());
-                            console.log(`[SCROLL_SAVE] Saved scroll position: ${mediaGrid.scrollTop}`);
-                        }
+                        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                        sessionStorage.setItem('mediaGridScrollPos', scrollY.toString());
+                        console.log(`[SCROLL_SAVE] Saved window scroll position: ${scrollY}`);
                         console.log(`Requesting to open media: ${itemData.fileType} - ${itemData.filePath}`);
                         window.electronAPI.send('open-media', { filePath: itemData.filePath, fileType: itemData.fileType });
                     } else {
@@ -400,15 +399,17 @@ function restoreScrollPosition() {
                 return;
             }
 
-            mediaGrid.scrollTop = savedScrollPos;
+            console.log(`[SCROLL_RESTORE] Attempting to scroll window to: 0, ${savedScrollPos}`);
+            window.scrollTo(0, savedScrollPos);
 
-            // Log after a very brief delay to allow the browser to process the scrollTop change
+            // Log after a very brief delay to allow the browser to process the scroll change
             setTimeout(() => {
-                console.log(`[SCROLL_RESTORE]   mediaGrid.scrollTop (after attempt): ${mediaGrid.scrollTop}`);
-                if (mediaGrid.scrollTop === savedScrollPos) {
-                    console.log(`[SCROLL_RESTORE]   Successfully restored scroll position.`);
+                const newScrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                console.log(`[SCROLL_RESTORE]   window.pageYOffset (after attempt): ${newScrollY}`);
+                if (newScrollY === savedScrollPos) {
+                    console.log(`[SCROLL_RESTORE]   Successfully restored window scroll position.`);
                 } else {
-                    console.warn(`[SCROLL_RESTORE]   Scroll position after attempt (${mediaGrid.scrollTop}) does not match saved position (${savedScrollPos}). This might happen if content height is insufficient or due to other constraints.`);
+                    console.warn(`[SCROLL_RESTORE]   Window scroll position after attempt (${newScrollY}) does not match saved position (${savedScrollPos}).`);
                 }
             }, 0); // Using 0ms timeout to log after current event loop cycle
 
