@@ -505,25 +505,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (mediaGrid) {
         mediaGrid.addEventListener('click', (event) => {
+            // Log 1: What was the direct target of the click?
+            console.log('%c[DEBUG_DELEGATE_CLICK] Click event. Event Target:', 'color: #FF7F50; font-weight: bold;', event.target);
+
             const clickedItemElement = event.target.closest('.media-item');
 
-            if (clickedItemElement && !clickedItemElement.classList.contains('memo-list-item')) { // Ensure it's a standard media item
-                console.log('%c[DEBUG_SCROLL_DELEGATION] Delegated click event fired on .media-item element.', 'color: green; font-weight: bold;');
+            // Log 2: Did we find a '.media-item' by traversing up from the event.target?
+            console.log('%c[DEBUG_DELEGATE_CLICK] event.target.closest(".media-item") result:', 'color: #FF7F50; font-weight: bold;', clickedItemElement);
+
+            if (clickedItemElement && !clickedItemElement.classList.contains('memo-list-item')) {
+                // Log 3: Confirmed it's a valid media item
+                console.log('%c[DEBUG_DELEGATE_CLICK] Valid .media-item identified.', 'color: green; font-weight: bold;', clickedItemElement);
 
                 const filePath = clickedItemElement.getAttribute('data-filepath');
                 const fileType = clickedItemElement.getAttribute('data-filetype');
+
+                // Log 4: Values of attributes
+                console.log(`%c[DEBUG_DELEGATE_CLICK] filePath: ${filePath}, fileType: ${fileType}`, 'color: green; font-weight: bold;');
 
                 if (filePath && fileType) {
                     // Save scroll position
                     const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
                     sessionStorage.setItem('mediaGridScrollPos', scrollY.toString());
-                    console.log(`[SCROLL_SAVE_DELEGATION] Saved window scroll position: ${scrollY}`);
+                    // Log 5: The crucial save log
+                    console.log(`%c[SCROLL_SAVE_DELEGATION] Saved window scroll position: ${scrollY}`, 'color: blue; font-weight: bold;');
 
                     // Open media
                     console.log(`Requesting to open media (delegated): ${fileType} - ${filePath}`);
                     window.electronAPI.send('open-media', { filePath: filePath, fileType: fileType });
                 } else {
                     console.error('[ERROR_DELEGATION] Clicked media item is missing data-filepath or data-filetype.', clickedItemElement);
+                }
+            } else {
+                // Log 6: If no valid media item was found from the click
+                if (!clickedItemElement) {
+                    console.log('%c[DEBUG_DELEGATE_CLICK] Click did not originate from a .media-item or its descendant.', 'color: orange;');
+                } else if (clickedItemElement.classList.contains('memo-list-item')) {
+                    console.log('%c[DEBUG_DELEGATE_CLICK] Click was on a .memo-list-item, ignored for scroll saving.', 'color: orange;');
                 }
             }
         });
