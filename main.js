@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron'); // Add shell here
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
@@ -821,4 +821,25 @@ ipcMain.on('background-color-changed', (event, newColor) => {
             win.webContents.send('apply-background-color', newColor);
         }
     });
+});
+
+ipcMain.on('open-external-link', (event, url) => {
+  console.log(`[IPC_OPEN_EXTERNAL] Received request to open URL: ${url}`);
+  if (typeof url !== 'string') {
+    console.error('[IPC_OPEN_EXTERNAL] Invalid URL received: not a string.', url);
+    return;
+  }
+
+  // Basic URL validation: only allow http and https protocols
+  if (url.startsWith('http:') || url.startsWith('https:')) {
+    shell.openExternal(url)
+      .then(() => {
+        console.log(`[IPC_OPEN_EXTERNAL] Successfully opened URL: ${url}`);
+      })
+      .catch(err => {
+        console.error(`[IPC_OPEN_EXTERNAL] Failed to open URL: ${url}. Error: ${err}`);
+      });
+  } else {
+    console.warn(`[IPC_OPEN_EXTERNAL] Blocked attempt to open non-http/https URL: ${url}`);
+  }
 });

@@ -6,5 +6,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Deliberately strip event as it includes `sender`
     ipcRenderer.on(channel, (event, ...args) => func(...args));
   },
-  invoke: (channel, data) => ipcRenderer.invoke(channel, data)
+  invoke: (channel, data) => ipcRenderer.invoke(channel, data),
+
+  // New function to request opening an external link
+  openExternalLink: (url) => {
+    if (typeof url === 'string') { // Basic validation
+      ipcRenderer.send('open-external-link', url);
+    } else {
+      console.error('Invalid URL passed to openExternalLink:', url);
+    }
+  }
 });

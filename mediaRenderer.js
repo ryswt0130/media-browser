@@ -346,11 +346,50 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (fileType === 'html') {
             const iframe = document.createElement('iframe');
             iframe.src = safeFilePath;
-            // Insert iframe before the title display
+            // Apply sandbox attributes for better security if desired, e.g.:
+            // iframe.sandbox = "allow-scripts allow-same-origin"; // allow-popups might be needed if the content has popups meant for external links
+
+            iframe.onload = () => {
+                console.log('[IFRAME_LINK_HANDLER] Iframe loaded:', safeFilePath);
+                try {
+                    if (!iframe.contentDocument) {
+                        console.error('[IFRAME_LINK_HANDLER] Cannot access iframe contentDocument. Link handling will not work.');
+                        return;
+                    }
+                    iframe.contentDocument.body.addEventListener('click', (event) => {
+                        const anchorElement = event.target.closest('a');
+                        if (anchorElement) {
+                            const hrefAttribute = anchorElement.getAttribute('href'); // Original href attribute
+                            const resolvedHref = anchorElement.href; // Fully resolved URL by the browser
+
+                            console.log(`[IFRAME_LINK_HANDLER] Clicked link in iframe. Original href: "${hrefAttribute}", Resolved href: "${resolvedHref}"`);
+
+                            if (resolvedHref) {
+                                event.preventDefault(); // Prevent iframe navigation
+                                window.electronAPI.openExternalLink(resolvedHref);
+                                console.log(`[IFRAME_LINK_HANDLER] Requested to open external link: ${resolvedHref}`);
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error('[IFRAME_LINK_HANDLER] Error setting up click listener inside iframe:', e);
+                }
+            };
+            iframe.onerror = () => {
+                console.error('[IFRAME_LINK_HANDLER] Iframe failed to load:', safeFilePath);
+                const errorMsg = document.createElement('p');
+                errorMsg.textContent = `Error: Could not load HTML file content from ${safeFilePath}`;
+                if(iframe.parentNode) {
+                    iframe.parentNode.replaceChild(errorMsg, iframe);
+                } else {
+                    mediaViewerContainer.appendChild(errorMsg);
+                }
+            };
+
             if (mediaTitleDisplay) {
                 mediaViewerContainer.insertBefore(iframe, mediaTitleDisplay);
             } else {
-                mediaViewerContainer.appendChild(iframe); // Fallback if title not found
+                mediaViewerContainer.appendChild(iframe);
             }
         } else {
             const errorMessage = document.createElement('p');
