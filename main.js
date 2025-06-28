@@ -434,6 +434,40 @@ app.on('window-all-closed', () => {
   }
 });
 
+ipcMain.on('request-library-refresh', async (event) => {
+  console.log('[IPC Refresh] Received "request-library-refresh". Reloading all media...');
+
+  try {
+    await loadAllMediaFromRegisteredFolders();
+
+    console.log(`[IPC Refresh] Media reloaded. Broadcasting 'media-files-loaded' to all windows with ${allScannedMediaFiles.length} items.`);
+    BrowserWindow.getAllWindows().forEach(win => {
+      if (win && !win.isDestroyed() && win.webContents) {
+        win.webContents.send('media-files-loaded', allScannedMediaFiles);
+      }
+    });
+
+  } catch (error) {
+    console.error('[IPC Refresh] Error during library refresh:', error);
+    // event.sender.send('library-refresh-failed', error.message); // Optional
+  }
+});
+
+ipcMain.handle('check-file-exists', async (event, filePath) => {
+  if (!filePath || typeof filePath !== 'string') {
+    console.error('[IPC check-file-exists] Received invalid filePath:', filePath);
+    return false;
+  }
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    // console.log(`[IPC check-file-exists] File exists: ${filePath}`); // Optional: for verbose logging
+    return true;
+  } catch (error) {
+    // console.log(`[IPC check-file-exists] File does not exist or not accessible: ${filePath}`); // Optional: for verbose logging
+    return false;
+  }
+});
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
@@ -482,21 +516,44 @@ async function loadAllMediaFromRegisteredFolders() {
 
     // Process files to check for existing thumbnails and add favorite status
     const processedFiles = consolidatedMediaFiles.map(file => {
+        // 'file' here is an object from scanDirectory, containing:
+        // filePath, fileType, mtime (Date object for modification time of media file), name (basename)
+
         const expectedFilename = generateExpectedThumbnailFilename(file.filePath);
         const expectedThumbnailPath = path.join(THUMBNAILS_DIR, expectedFilename);
-        let thumbnailPath = null;
+        let thumbnailPathToUse = null;
 
         if (fs.existsSync(expectedThumbnailPath)) {
-            thumbnailPath = expectedThumbnailPath;
+            try {
+                const thumbStats = fs.statSync(expectedThumbnailPath);
+                // file.mtime is a Date object from fs.statSync(mediaFilePath).mtime via scanDirectory
+                // thumbStats.mtime is also a Date object. Direct comparison works.
+                if (file.mtime > thumbStats.mtime) {
+                    console.log(`[THUMB_REGEN] Source file ${file.filePath} (mtime: ${file.mtime.toISOString()}) is newer than its thumbnail (mtime: ${thumbStats.mtime.toISOString()}). Regenerating.`);
+                    try {
+                        fs.unlinkSync(expectedThumbnailPath); // Delete old thumbnail
+                        console.log(`[THUMB_REGEN] Deleted old thumbnail: ${expectedThumbnailPath}`);
+                    } catch (err) {
+                        console.error(`[THUMB_REGEN] Error deleting old thumbnail ${expectedThumbnailPath}:`, err);
+                    }
+                    thumbnailPathToUse = null; // Mark for regeneration by ensuring path is null
+                } else {
+                    thumbnailPathToUse = expectedThumbnailPath; // Thumbnail exists and is not older
+                }
+            } catch (statErr) {
+                console.error(`[THUMB_REGEN] Error stating thumbnail file ${expectedThumbnailPath}:`, statErr);
+                thumbnailPathToUse = null; // Could not stat thumbnail, assume it's problematic, try to regenerate
+            }
         } else {
-            // console.log(`Thumbnail not found for ${file.filePath}, will need on-demand generation.`);
+            thumbnailPathToUse = null; // Thumbnail file does not exist, needs generation
+            // console.log(`[THUMB_GEN] Thumbnail does not exist for ${file.filePath}. Queuing for generation.`); // Optional log
         }
         const favoriteStatus = isFavorite(file.filePath);
-        console.log(`[LOAD_ALL_MEDIA] Processing ${file.filePath}, isFavorite: ${favoriteStatus}`);
+        // console.log(`[LOAD_ALL_MEDIA] Processing ${file.filePath}, isFavorite: ${favoriteStatus}`); // This log is now part of the original for each file
         return {
-            ...file,
-            thumbnailPath: thumbnailPath, // Path if exists, null otherwise
-            isFavorite: favoriteStatus // Ensure this line is setting it based on the function call
+            ...file, // Contains original filePath, fileType, mtime, name
+            thumbnailPath: thumbnailPathToUse,
+            isFavorite: favoriteStatus
         };
     });
 

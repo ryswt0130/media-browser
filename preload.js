@@ -15,5 +15,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     } else {
       console.error('Invalid URL passed to openExternalLink:', url);
     }
+  },
+
+  checkFileExists: (filePath) => {
+    if (typeof filePath === 'string' && filePath.length > 0) {
+      return ipcRenderer.invoke('check-file-exists', filePath);
+    } else {
+      console.error('[Preload:checkFileExists] Invalid filePath provided:', filePath);
+      return Promise.resolve(false); // Return a resolved promise with false for invalid input
+    }
   }
 });

@@ -249,12 +249,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function loadMedia(filePath, fileType, isFavorite, appName, isInitialPageLoad = false) {
+    async function loadMedia(filePath, fileType, isFavorite, appName, isInitialPageLoad = false) {
         // Update global vars that hold the current state based on parameters
-        currentFilePath = filePath; // This is the target file to load
+        currentFilePath = filePath;
         currentFileType = fileType;
         currentIsFavorite = isFavorite === true || isFavorite === 'true';
         currentAppName = appName || "My Media Browser";
+
+        // Get references to UI elements that might need to be manipulated
+        const mediaViewerContainer = document.getElementById('media-viewer-container');
+        const mediaTitleDisplay = document.getElementById('media-title-display');
+        const mediaFavoriteBtn = document.getElementById('media-favorite-btn');
+        const memoSection = document.getElementById('memo-section');
+        const insertTimestampBtn = document.getElementById('insert-timestamp-btn');
+        const recommendationsGrid = document.getElementById('recommendations-grid');
+
+        // --- New File Existence Check ---
+        let fileExists = false;
+        if (filePath && typeof filePath === 'string') {
+            if (window.electronAPI && typeof window.electronAPI.invoke === 'function') { // Check invoke
+                try {
+                    console.log(`[LOAD_MEDIA] Checking existence of: ${filePath}`);
+                    // Assuming 'check-file-exists' is a valid channel handled in main.js
+                    fileExists = await window.electronAPI.invoke('check-file-exists', filePath);
+                } catch (error) {
+                    console.error(`[LOAD_MEDIA_ERROR] Error invoking 'check-file-exists' for ${filePath}:`, error);
+                    fileExists = false;
+                }
+            } else {
+                console.warn("[LOAD_MEDIA] 'check-file-exists' API (or invoke) not found. Assuming file exists (risky).");
+                fileExists = true;
+            }
+        } else {
+            fileExists = false;
+            console.error('[LOAD_MEDIA_ERROR] filePath is invalid:', filePath);
+        }
+
+        if (!fileExists) {
+            console.warn(`[LOAD_MEDIA] File not found or path invalid: ${filePath}. Displaying error message.`);
+            if (mediaViewerContainer) mediaViewerContainer.innerHTML = '';
+            if (recommendationsGrid) recommendationsGrid.innerHTML = '';
+
+            if (mediaTitleDisplay) mediaTitleDisplay.textContent = (filePath && typeof filePath === 'string') ? 'File Not Found' : 'Invalid File Path';
+
+            const errorMessageElement = document.createElement('p');
+            errorMessageElement.id = 'media-error-message'; // Assign an ID for potential later removal/check
+            errorMessageElement.textContent = (filePath && typeof filePath === 'string')
+                ? 'The media file could not be found. It may have been moved, renamed, or deleted.'
+                : 'No valid file path was provided to load.';
+            if (mediaViewerContainer) mediaViewerContainer.appendChild(errorMessageElement);
+
+            if (mediaFavoriteBtn) mediaFavoriteBtn.style.display = 'none';
+            if (memoSection) memoSection.style.display = 'none';
+            if (insertTimestampBtn) insertTimestampBtn.style.display = 'none';
+
+            return;
+        }
+        // --- End of New File Existence Check ---
+
+        // If file exists, proceed with the original loadMedia logic:
+        if (mediaFavoriteBtn) mediaFavoriteBtn.style.display = 'inline-block';
+        if (memoSection) memoSection.style.display = 'block';
+        // insertTimestampBtn visibility is handled later based on fileType
 
         updateFavoriteButtonVisual();
         clearMediaViewer();
@@ -264,11 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mediaTitleDisplay) {
             mediaTitleDisplay.textContent = '';
         } else {
-            // This case should ideally not happen if script order and DOM are correct.
             console.error("#media-title-display element not found at start of loadMedia.");
         }
 
-        // Apply/Remove maximized class for HTML view
+        const mediaPageContainer = document.querySelector('.media-page-container');
         if (mediaPageContainer) {
             if (fileType === 'html') {
                 mediaPageContainer.classList.add('html-view-maximized');
@@ -281,33 +336,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const stateObject = { filePath, fileType, isFavorite: currentIsFavorite, appName: currentAppName };
 
         if (isInitialPageLoad || filePath === currentFilePathOnPage) {
-            // If it's the first load of this specific page instance, or we are "reloading" the same media item
-            // (e.g. due to popstate or an external favorite update), replace the state.
             history.replaceState(stateObject, '', newUrl);
         } else {
-            // If loading a new distinct media item (e.g. from recommendations), push a new state.
             history.pushState(stateObject, '', newUrl);
         }
-        currentFilePathOnPage = filePath; // Update what's actually displayed
+        currentFilePathOnPage = filePath;
 
-        if (!filePath || !fileType) {
-            const errorMessage = document.createElement('p');
-            errorMessage.textContent = 'Media file path or type not provided.';
-            // Insert error message before the title display
-            if (mediaTitleDisplay) {
-                mediaViewerContainer.insertBefore(errorMessage, mediaTitleDisplay);
-            } else {
-                mediaViewerContainer.appendChild(errorMessage); // Fallback if title not found
-            }
-            console.error('Media file path or type not provided for loadMedia.');
-            // Hide memo section if no media is loaded
-            if (memoSection) memoSection.style.display = 'none';
-            if (insertTimestampBtn) insertTimestampBtn.style.display = 'none';
-            return;
-        }
-        // Show memo section when media is loaded
-        if (memoSection) memoSection.style.display = 'block';
-
+        // Note: The original `if (!filePath || !fileType)` check is now effectively handled by the fileExists check earlier.
+        // The `if (memoSection) memoSection.style.display = 'block';` is also handled after fileExists check.
 
         console.log(`Displaying media: ${fileType} - ${filePath}`);
         const safeFilePath = filePath.startsWith('file://') ? filePath : `file://${filePath}`;

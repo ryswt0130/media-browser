@@ -16,6 +16,7 @@ let searchInput = null; // For search functionality
 let toggleMemoListViewBtn = null;
 let memoSortControls = null;
 let memoSortSelect = null;
+let refreshLibraryBtn;
 
 const DEFAULT_BACKGROUND_COLOR = '#f0f0f0'; // Match initial CSS body background
 const BACKGROUND_COLOR_STORAGE_KEY = 'appBackgroundColor';
@@ -499,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleMemoListViewBtn = document.getElementById('toggle-memo-list-view-btn');
     memoSortControls = document.getElementById('memo-sort-controls');
     memoSortSelect = document.getElementById('memo-sort-select');
+    refreshLibraryBtn = document.getElementById('refresh-library-btn');
 
     // Initialize Volume (depends on masterVolumeSlider)
     initializeVolume();
@@ -755,6 +757,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.electronAPI) {
         console.log('Requesting current media list from main process...');
         window.electronAPI.send('get-current-media-list');
+    }
+
+    if (refreshLibraryBtn) {
+        refreshLibraryBtn.addEventListener('click', () => {
+            // Ensure electronAPI and its 'send' method are available
+            if (window.electronAPI && typeof window.electronAPI.send === 'function') {
+                console.log('[Refresh Button] Clicked. Sending "request-library-refresh" to main process.');
+
+                // Update status message to provide user feedback
+                if (statusMessage) { // statusMessage is an existing element for displaying status
+                    statusMessage.textContent = 'Refreshing library... please wait.';
+                } else {
+                    console.warn('statusMessage element not found, cannot display refreshing status.');
+                }
+
+                window.electronAPI.send('request-library-refresh');
+            } else {
+                console.error('[Refresh Button] window.electronAPI.send is not available. Cannot send refresh request.');
+                if (statusMessage) {
+                    statusMessage.textContent = 'Error: Refresh feature is currently unavailable.';
+                }
+            }
+        });
+    } else {
+        console.warn("Refresh Library button (#refresh-library-btn) not found in the DOM. Listener not attached.");
     }
 });
 
