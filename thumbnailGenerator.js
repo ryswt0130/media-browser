@@ -14,60 +14,127 @@ const THUMBNAIL_WIDTH = 200;
 const THUMBNAIL_HEIGHT = 150;
 
 // Constants for HTML Title Thumbnails
-const HTML_THUMB_FONT_SIZE = 16;
+const HTML_THUMB_FONT_SIZE = 14;
 const HTML_THUMB_LINE_HEIGHT_EM = 1.2;
 const HTML_THUMB_ACTUAL_LINE_HEIGHT = Math.floor(HTML_THUMB_FONT_SIZE * HTML_THUMB_LINE_HEIGHT_EM);
 const HTML_THUMB_TEXT_COLOR = '#ffffff';
 const HTML_THUMB_BACKGROUND_COLOR = '#4a5568'; // A neutral dark gray/blue
-const HTML_THUMB_FONT_FAMILY = 'Arial, Helvetica, sans-serif';
+const HTML_THUMB_FONT_FAMILY = "'Meiryo', 'Yu Gothic', 'Hiragino Kaku Gothic ProN', 'MS PGothic', Arial, sans-serif"; // Kept for context, though not directly used by new wrapTextToTSpans
 const HTML_THUMB_PADDING_X = 10;
 const HTML_THUMB_PADDING_Y = 10; // Top padding for first line
-const HTML_THUMB_MAX_TEXT_WIDTH = THUMBNAIL_WIDTH - 2 * HTML_THUMB_PADDING_X;
+const HTML_THUMB_MAX_TEXT_WIDTH = THUMBNAIL_WIDTH - 2 * HTML_THUMB_PADDING_X; // Kept for context
 
 function escapeHTML(str) {
     if (typeof str !== 'string') return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) {
-    // Simplified approach: Estimate characters per line
-    const AVG_CHAR_WIDTH_FACTOR = 0.55; // Adjusted factor, more conservative for average char width
-    const CHARS_PER_LINE = Math.floor(maxWidth / (fontSize * AVG_CHAR_WIDTH_FACTOR));
-    if (CHARS_PER_LINE <= 0) return [text]; // Cannot wrap meaningfully
+function wrapTextToTSpans(text, maxWidth, fontSize, fontFamily) { // Signature kept for compatibility
+    const TARGET_LINE_WIDTH = 13.0; // Target width in full-width character equivalents
 
-    const words = text.split(' ');
+    function getCharDisplayWidth(char) {
+        const code = char.charCodeAt(0);
+
+        // ASCII (0.5)
+        if (code >= 0x0000 && code <= 0x007F) return 0.5;
+        // Half-width Katakana (0.5)
+        if (code >= 0xFF61 && code <= 0xFF9F) return 0.5;
+        
+        // CJK Symbols and Punctuation (1.0)
+        if (code >= 0x3000 && code <= 0x303F) return 1.0;
+        // Hiragana (1.0)
+        if (code >= 0x3040 && code <= 0x309F) return 1.0;
+        // Katakana (1.0)
+        if (code >= 0x30A0 && code <= 0x30FF) return 1.0;
+        // CJK Unified Ideographs (Chinese, Japanese, Korean) (1.0)
+        if (code >= 0x4E00 && code <= 0x9FFF) return 1.0;
+        // Full-width forms (e.g., full-width English letters, numbers, symbols) (1.0)
+        if (code >= 0xFF00 && code <= 0xFFEF) return 1.0;
+
+        // Broader heuristic for other characters:
+        if (code > 255) return 1.0; // Default others (often accented Latin, etc.) to full-width
+        
+        return 0.5; // Default for remaining characters (e.g., some punctuation not in CJK symbols)
+    }
+
     const lines = [];
-    let currentLine = '';
+    let currentLine = "";
+    let currentLineWidth = 0;
+    const words = text.split(' ');
+
+    function calculateWordWidth(word) {
+        let width = 0;
+        for (const char of word) {
+            width += getCharDisplayWidth(char);
+        }
+        return width;
+    }
 
     for (const word of words) {
-        if (currentLine.length === 0) {
-            currentLine = word;
-        } else if ((currentLine + ' ' + word).length <= CHARS_PER_LINE) {
-            currentLine += ' ' + word;
-        } else {
-            // Word itself is too long for a line, break it if it's the only word
-            if (currentLine.length === 0 && word.length > CHARS_PER_LINE) {
-                 lines.push(word.substring(0, CHARS_PER_LINE));
-                 currentLine = word.substring(CHARS_PER_LINE); // Remainder for next line
-                 while(currentLine.length > CHARS_PER_LINE) {
-                     lines.push(currentLine.substring(0, CHARS_PER_LINE));
-                     currentLine = currentLine.substring(CHARS_PER_LINE);
-                 }
-            } else {
-                lines.push(currentLine);
+        const wordWidth = calculateWordWidth(word);
+        const spaceWidth = 0.5; // Assuming space is half-width
+
+        if (currentLine === "") { // Current line is empty
+            if (wordWidth > TARGET_LINE_WIDTH) {
+                // Word itself is too long, needs character-by-character breaking
+                let tempWordPart = "";
+                let tempWordPartWidth = 0;
+                for (const char of word) {
+                    const charWidth = getCharDisplayWidth(char);
+                    if (tempWordPart !== "" && tempWordPartWidth + charWidth > TARGET_LINE_WIDTH) {
+                        lines.push(tempWordPart);
+                        tempWordPart = char;
+                        tempWordPartWidth = charWidth;
+                    } else {
+                        tempWordPart += char;
+                        tempWordPartWidth += charWidth;
+                    }
+                }
+                // After iterating through chars of a long word, the remainder is the new current line
+                currentLine = tempWordPart;
+                currentLineWidth = tempWordPartWidth;
+            } else { // Word fits on a new empty line
                 currentLine = word;
-                // Handle case where the new word itself is too long
-                while(currentLine.length > CHARS_PER_LINE) {
-                     lines.push(currentLine.substring(0, CHARS_PER_LINE));
-                     currentLine = currentLine.substring(CHARS_PER_LINE);
-                 }
+                currentLineWidth = wordWidth;
+            }
+        } else { // Current line has content
+            if (currentLineWidth + spaceWidth + wordWidth > TARGET_LINE_WIDTH) {
+                // Word doesn't fit on the current line with a space
+                lines.push(currentLine); // Push the existing line
+                // Now handle the new word for the next line
+                if (wordWidth > TARGET_LINE_WIDTH) {
+                     // Word itself is too long for a new line, needs character-by-character breaking
+                    let tempWordPart = "";
+                    let tempWordPartWidth = 0;
+                    for (const char of word) {
+                        const charWidth = getCharDisplayWidth(char);
+                        if (tempWordPart !== "" && tempWordPartWidth + charWidth > TARGET_LINE_WIDTH) {
+                            lines.push(tempWordPart);
+                            tempWordPart = char;
+                            tempWordPartWidth = charWidth;
+                        } else {
+                            tempWordPart += char;
+                            tempWordPartWidth += charWidth;
+                        }
+                    }
+                    currentLine = tempWordPart; // Remainder of the word
+                    currentLineWidth = tempWordPartWidth;
+                } else { // Word fits entirely on a new line
+                    currentLine = word;
+                    currentLineWidth = wordWidth;
+                }
+            } else { // Word fits on the current line with a space
+                currentLine += " " + word;
+                currentLineWidth += spaceWidth + wordWidth;
             }
         }
     }
-    if (currentLine.length > 0) {
+
+    if (currentLine !== "") { // Push any remaining line content
         lines.push(currentLine);
     }
-    return lines.map(line => line.trim());
+    
+    return lines;
 }
 
 
@@ -160,19 +227,29 @@ async function generateThumbnail(filePath, fileType) {
                     title = title.split(' ').map(word => word.charAt(0).toUpperCase() + word.substring(1)).join(' ');
 
                     const lines = wrapTextToTSpans(title, HTML_THUMB_MAX_TEXT_WIDTH, HTML_THUMB_FONT_SIZE, HTML_THUMB_FONT_FAMILY);
-                    const MAX_VISIBLE_LINES = Math.floor((THUMBNAIL_HEIGHT - 2 * HTML_THUMB_PADDING_Y) / HTML_THUMB_ACTUAL_LINE_HEIGHT);
+                    // MAX_VISIBLE_LINES calculation now depends on how many lines the new wrapTextToTSpans returns
+                    // and the available vertical space after the 3-line gap for the title.
+                    // The y position of text is HTML_THUMB_PADDING_Y + HTML_THUMB_FONT_SIZE * 0.8 + (3 * HTML_THUMB_ACTUAL_LINE_HEIGHT)
+                    // Available height for text lines: THUMBNAIL_HEIGHT - (y_position_of_first_line_baseline - HTML_THUMB_FONT_SIZE * 0.8) - HTML_THUMB_PADDING_Y (for bottom)
+                    // This simplifies to: THUMBNAIL_HEIGHT - (HTML_THUMB_PADDING_Y + 3 * HTML_THUMB_ACTUAL_LINE_HEIGHT) - HTML_THUMB_PADDING_Y
+                    const textBlockStartY = HTML_THUMB_PADDING_Y + (3 * HTML_THUMB_ACTUAL_LINE_HEIGHT);
+                    const availableHeightForText = THUMBNAIL_HEIGHT - textBlockStartY - HTML_THUMB_PADDING_Y;
+                    const MAX_VISIBLE_LINES = Math.max(0, Math.floor(availableHeightForText / HTML_THUMB_ACTUAL_LINE_HEIGHT));
+
 
                     let tspanElements = '';
                     for (let i = 0; i < Math.min(lines.length, MAX_VISIBLE_LINES); i++) {
                         let lineText = lines[i];
+                        // Ellipsis logic might need refinement if a single line from wrapTextToTSpans is still too long
+                        // for the visual container, though wrapTextToTSpans aims to prevent this.
+                        // For now, assume lines from wrapTextToTSpans are short enough.
                         if (i === MAX_VISIBLE_LINES - 1 && lines.length > MAX_VISIBLE_LINES) {
-                            // Estimate chars per line for ellipsis
-                            const CHARS_PER_LINE = Math.floor(HTML_THUMB_MAX_TEXT_WIDTH / (HTML_THUMB_FONT_SIZE * 0.55));
-                            if (lineText.length > CHARS_PER_LINE - 3) { // Check if ellipsis is needed based on CHARS_PER_LINE
-                                lineText = lineText.substring(0, Math.max(0, CHARS_PER_LINE - 3)).trimEnd() + '...';
-                            } else if (lines.length > MAX_VISIBLE_LINES) { // If it fits but there are more lines
-                                lineText = lineText.trimEnd() + '...';
-                            }
+                           // Add ellipsis to the last visible line if there are more lines than can be shown
+                           if (lineText.length > 3) { // Ensure there's space for ellipsis
+                               lineText = lineText.substring(0, lineText.length - 2) + '...';
+                           } else {
+                               lineText = '...'; // Or just ellipsis if line is too short
+                           }
                         }
                         // For the first tspan, dy is 0 relative to text element's y. For others, it's line height.
                         const dy = (i === 0) ? 0 : HTML_THUMB_ACTUAL_LINE_HEIGHT;
@@ -182,7 +259,7 @@ async function generateThumbnail(filePath, fileType) {
                     const svgContent = `
                       <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
                         <rect width="100%" height="100%" fill="${HTML_THUMB_BACKGROUND_COLOR}" />
-                        <text x="${HTML_THUMB_PADDING_X}" y="${HTML_THUMB_PADDING_Y + HTML_THUMB_FONT_SIZE * 0.8}"
+                        <text x="${HTML_THUMB_PADDING_X}" y="${HTML_THUMB_PADDING_Y + HTML_THUMB_FONT_SIZE * 0.8 + (3 * HTML_THUMB_ACTUAL_LINE_HEIGHT)}"
                               font-family="${HTML_THUMB_FONT_FAMILY}" font-size="${HTML_THUMB_FONT_SIZE}" fill="${HTML_THUMB_TEXT_COLOR}">
                           ${tspanElements}
                         </text>

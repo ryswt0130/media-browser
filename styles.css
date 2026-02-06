@@ -81,6 +81,19 @@ body {
     opacity: 0.9;
 }
 
+#search-input {
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    /* Consider a flexible width or a fixed width that fits well */
+    min-width: 150px; /* Example minimum width */
+    flex-grow: 0.5; /* Allow it to take some space, but not too aggressively */
+    max-width: 300px; /* Prevent it from becoming too large */
+    margin-left: 10px; /* Or adjust margins as needed */
+    margin-right: 10px;
+}
+
 /* Page Container Layout (Sidebar + Main Content) */
 .page-container {
     display: flex;
@@ -131,6 +144,27 @@ body {
     color: #f0f0f0; /* Default to light text, assuming dark backgrounds are common */
     /* Or add a very subtle, semi-transparent background to status message itself */
     /* background-color: rgba(0, 0, 0, 0.1); border-radius: 3px; padding: 5px; */
+}
+
+#memo-sort-controls {
+    display: none; /* Default hidden, JS toggles to 'block' or 'flex' */
+    margin-bottom: 10px;
+    padding-left: 10px; 
+    color: #f0f0f0; 
+}
+
+#memo-sort-controls label {
+    margin-right: 8px; 
+    font-size: 0.9em;
+}
+
+#memo-sort-select {
+    padding: 5px 8px;
+    font-size: 0.9em;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #ddd;
 }
 
 #media-grid {
@@ -202,26 +236,18 @@ body {
 }
 
 .media-item p {
-    margin: 5px; /* Keep existing margin or adjust */
-    font-size: 12px; /* Keep existing font-size or adjust */
-    text-align: center; /* Keep existing text-align or adjust */
-
-    /* Remove single-line specific styles */
-    /* white-space: nowrap; */ /* REMOVED */
-    /* text-overflow: ellipsis; */ /* text-overflow alone is for single line */
-
-    /* Multi-line ellipsis for 2 lines */
-    overflow: hidden; /* Required for ellipsis */
-    text-overflow: ellipsis; /* Fallback for browsers that don't support -webkit-line-clamp or for the last line */
+    margin: 5px;
+    font-size: 12px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* Number of lines to show */
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
-
-    line-height: 1.3em; /* Adjust based on font-size for appropriate spacing. (12px * 1.3 = 15.6px) */
-    max-height: 2.6em;  /* line-height * 2 lines (15.6px * 2 = 31.2px). This acts as a fallback. */
-
-    word-break: break-word; /* Allow long words to break and wrap to prevent overflow */
-    height: auto; /* Ensure no fixed height is set that would conflict */
+    line-height: 1.3em;
+    max-height: 2.6em;
+    word-break: break-word;
+    height: auto;
 }
 
 #status-message {
@@ -337,14 +363,14 @@ body {
     /* flex-grow: 1; Removed, as it's now wrapped by player-with-title-area */
     /* min-height: 0; Removed */
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column; /* Ensures video/image and title stack vertically */
+    align-items: center;   /* Centers the video/image and title block horizontally */
     padding: 10px;
     box-sizing: border-box;
     overflow: hidden;
     width: 100%; /* Take full width of player-with-title-area */
     /* Height determined by its content (media element) */
-    flex-grow: 1; /* Takes available space within #player-with-title-area, before title */
+    /* flex-grow: 1; Removed to allow natural sizing */
     flex-shrink: 1; /* Allow it to shrink */
     min-height: 0; /* Allows it to shrink if content is smaller */
 }
@@ -391,16 +417,132 @@ body {
     color: #f0f0f0;
 }
 
+/* Styles for Memo Section in media.html sidebar */
+#memo-section {
+    margin-bottom: 20px; /* Moved from inline */
+    padding: 5px; 
+}
+
+#memo-section h3 {
+    margin-top: 0; 
+    margin-bottom: 8px;
+    font-size: 1.1em; 
+    color: #e0e0e0; 
+    border-bottom: 1px solid #444;
+    padding-bottom: 4px;
+}
+
+/* Styles for the new memo layout */
+#memo-textarea { /* For new entry input */
+    width: 100%; 
+    box-sizing: border-box; 
+    padding: 8px;
+    margin-bottom: 8px; /* Space before controls div */
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #333; 
+    color: #ddd; 
+    font-family: sans-serif; 
+    min-height: 60px; /* Adjusted from rows="5" roughly */
+    display: block; /* Ensure it's visible and block */
+}
+
+#memo-controls {
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-bottom: 15px; /* Space before the display area h4 */
+}
+
+#save-memo-btn { /* Now "Save Entry" button */
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #007bff; 
+    color: white;
+    /* margin-right is handled by gap on parent */
+    display: inline-block; /* Should be visible */
+}
+
+#insert-timestamp-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #6c757d; 
+    color: white;
+    /* margin-right and margin-left handled by gap on parent */
+    display: none; /* JS will toggle based on video type */
+}
+
+/* #edit-memo-btn and #cancel-edit-memo-btn rules will be removed */
+
+#memo-section h4 { /* For "Saved Memo:" heading */
+    margin-top: 10px; 
+    margin-bottom: 5px;
+    font-size: 1.0em; 
+    color: #c0c0c0; 
+    border-bottom: 1px solid #383838;
+    padding-bottom: 3px;
+}
+
+#memo-display-area { /* For displaying all saved memo content */
+    padding: 8px;
+    background-color: #2e2e2e; 
+    border: 1px solid #444;
+    border-radius: 4px;
+    white-space: pre-wrap; 
+    min-height: 80px; 
+    color: #ddd; 
+    margin-bottom: 0; /* It's the last element in the section */
+}
+
+#save-memo-btn:hover,
+#insert-timestamp-btn:hover { /* Update hover group */
+    opacity: 0.9;
+}
+
+#memo-status-message {
+    /* margin-left: 10px; /* Handled by gap in #memo-controls */
+    font-size: 0.9em;
+    padding: 3px 6px;
+    border-radius: 3px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s; /* Visibility hidden after opacity fades */
+    padding: 3px 6px; /* Keep this */
+    border-radius: 3px; /* Keep this */
+}
+#memo-status-message.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out; /* Visibility transition immediate when showing (no delay) */
+}
+#memo-status-message.success {
+    color: #155724; /* Darker green text for better contrast on light bg */
+    background-color: #d4edda; /* Light green background */
+    border: 1px solid #c3e6cb;
+}
+#memo-status-message.error {
+    color: #721c24; /* Darker red text */
+    background-color: #f8d7da; /* Light red background */
+    border: 1px solid #f5c6cb;
+}
+
+
 /* Styles for Maximized HTML View on Media Page */
 .media-page-container.html-view-maximized #media-viewer-main-content {
-    flex-grow: 6;
+    flex-grow: 3;
     flex-shrink: 0;
 }
 
 .media-page-container.html-view-maximized #media-recommendations-sidebar {
     flex-grow: 1;
     flex-shrink: 1;
-    max-width: 200px;
+    /* max-width: 200px; */
 }
 
 /* Specific adjustments for HTML view to make player area grow */

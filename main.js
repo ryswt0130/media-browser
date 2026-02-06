@@ -6,6 +6,180 @@ const appPackage = require('./package.json');
 const { scanDirectory } = require('./fileScanner');
 const { generateThumbnail, THUMBNAILS_DIR, generateExpectedThumbnailFilename } = require('./thumbnailGenerator'); // Import new items
 
+// --- 開発時のみリロードを有効化 ---
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const electronPath = require('electron'); // Get the path to electron
+    require('electron-reload')(__dirname, {
+      electron: electronPath, // Use the resolved path
+      hardResetMethod: 'exit' // Recommended for main process changes
+    });
+  } catch (e) {
+    console.error('electron-reload could not be loaded. If you are not in a dev environment, this is normal. Error:', e);
+  }
+}
+// -------------------------------------
+
+const thumbnailQueue = [];
+let activeThumbnailWorkers = 0;
+const MAX_CONCURRENT_THUMBNAIL_WORKERS = 1; // Or 3, or 4. Let's start with 2.
+const MEMOS_DIR = path.join(app.getPath('userData'), 'memos');
+
+async function processThumbnailQueue() {
+    console.log('[QUEUE] processThumbnailQueue called.');
+    if (activeThumbnailWorkers >= MAX_CONCURRENT_THUMBNAIL_WORKERS || thumbnailQueue.length === 0) {
+        return; // Max workers busy or queue is empty
+    }
+    console.log(`[QUEUE] State before dequeue: Queue length: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
+    const task = thumbnailQueue.shift(); // Get the next task
+    console.log(`[QUEUE] Dequeued task for: ${task.filePath}, Type: ${task.fileType}, RendererRequest: ${task.isRendererRequest}`);
+    activeThumbnailWorkers++;
+
+    // This console.log was part of the original prompt, but it's very similar to the one above.
+    // For clarity, I'll use the more detailed one above.
+    // console.log(`Processing thumbnail for: ${task.filePath}. Queue size: ${thumbnailQueue.length}, Active workers: ${activeThumbnailWorkers}`);
+
+    try {
+        console.log(`[QUEUE] Calling generateThumbnail for: ${task.filePath}`);
+        // generateThumbnail is already async and returns an object { generatedThumbnailPath, error, details }
+        const thumbResult = await generateThumbnail(task.filePath, task.fileType);
+        console.log(`[QUEUE] generateThumbnail returned for: ${task.filePath}. Result error: ${thumbResult.error}, Path: ${thumbResult.generatedThumbnailPath}`);
+
+        // Update allScannedMediaFiles regardless of request type
+        if (thumbResult.generatedThumbnailPath) {
+            const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === task.filePath);
+            if (fileIndex !== -1) {
+                allScannedMediaFiles[fileIndex].thumbnailPath = thumbResult.generatedThumbnailPath;
+                console.log(`Updated allScannedMediaFiles for ${task.filePath} with new thumbnail path.`);
+            }
+        }
+
+        if (task.isRendererRequest && task.windowId !== undefined) {
+            const targetWindow = BrowserWindow.fromId(task.windowId);
+            if (targetWindow && !targetWindow.isDestroyed()) {
+                console.log(`[QUEUE] Sending 'thumbnail-generated' IPC for: ${task.filePath}, ImgID: ${task.imgIdForRenderer}`);
+                targetWindow.webContents.send('thumbnail-generated', {
+                    originalImgId: task.imgIdForRenderer,
+                    filePath: task.filePath, // Send filePath back for context if needed
+                    ...thumbResult // spread the result: generatedThumbnailPath, error, details
+                });
+            } else {
+                console.warn(`Target window for thumbnail result no longer exists or is invalid. Window ID: ${task.windowId}, File: ${task.filePath}`);
+            }
+        }
+    } catch (error) {
+        console.error(`[QUEUE] CATCH BLOCK error during generateThumbnail for ${task.filePath}: `, error);
+        // If generateThumbnail itself throws an unhandled error (it shouldn't with its current structure)
+        // We still need to ensure the renderer gets a response if it was a renderer request.
+        if (task.isRendererRequest && task.windowId !== undefined) {
+            const targetWindow = BrowserWindow.fromId(task.windowId);
+            if (targetWindow && !targetWindow.isDestroyed()) {
+                targetWindow.webContents.send('thumbnail-generated', {
+                    originalImgId: task.imgIdForRenderer,
+                    filePath: task.filePath,
+                    generatedThumbnailPath: null,
+                    error: 'queue_processing_error',
+                    details: error.message
+                });
+            }
+        }
+    } finally {
+        console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers before dec: ${activeThumbnailWorkers}`);
+        activeThumbnailWorkers--;
+        console.log(`[QUEUE] FINALLY for: ${task.filePath}. Active workers after dec: ${activeThumbnailWorkers}. Calling processThumbnailQueue recursively.`);
+        // Process next item if any
+        processThumbnailQueue(); 
+    }
+}
+
+function ensureMemosDirExists() {
+    if (!fs.existsSync(MEMOS_DIR)) {
+        try {
+            fs.mkdirSync(MEMOS_DIR, { recursive: true });
+            console.log(`Created memos directory: ${MEMOS_DIR}`);
+        } catch (e) {
+            console.error(`Failed to create memos directory ${MEMOS_DIR}:`, e);
+        }
+    }
+}
+
+function getMemoFilePath(mediaFilePath) {
+    if (!mediaFilePath) return null; // Handle undefined or null input
+    const mediaFilename = path.basename(mediaFilePath);
+    const memoFilename = path.parse(mediaFilename).name + '.md';
+    return path.join(MEMOS_DIR, memoFilename);
+}
+
+async function readMemo(mediaFilePath) {
+    const memoPath = getMemoFilePath(mediaFilePath);
+    if (!memoPath) return ""; // Or handle error appropriately
+    try {
+        if (fs.existsSync(memoPath)) {
+            return await fs.promises.readFile(memoPath, 'utf8');
+        }
+    } catch (e) {
+        console.error(`Error reading memo ${memoPath}:`, e);
+    }
+    return ""; // Default to empty string if no memo or error
+}
+
+async function saveMemo(mediaFilePath, content) {
+    ensureMemosDirExists(); // Ensure directory exists before saving
+    const memoPath = getMemoFilePath(mediaFilePath);
+    if (!memoPath) throw new Error('Could not determine memo file path.'); // Or handle error
+    try {
+        await fs.promises.writeFile(memoPath, content, 'utf8');
+        console.log(`Memo saved to ${memoPath}`);
+    } catch (e) {
+        console.error(`Error saving memo ${memoPath}:`, e);
+        throw e; // Re-throw to be caught by IPC handler
+    }
+}
+
+async function getMemosList() {
+    if (!fs.existsSync(MEMOS_DIR)) {
+        console.log('[MEMO LIST] Memos directory does not exist.');
+        return [];
+    }
+
+    try {
+        const memoMdFiles = fs.readdirSync(MEMOS_DIR).filter(file => file.endsWith('.md'));
+        const memoList = [];
+
+        for (const memoMdFile of memoMdFiles) {
+            const memoFilePath = path.join(MEMOS_DIR, memoMdFile);
+            let stats;
+            try {
+                stats = fs.statSync(memoFilePath);
+            } catch (e) {
+                console.error(`[MEMO LIST] Failed to get stats for ${memoFilePath}:`, e);
+                continue; // Skip this file
+            }
+
+            const mediaFileBaseName = path.parse(memoMdFile).name; // e.g., "myvideo" from "myvideo.md"
+            
+            // Find corresponding media file in allScannedMediaFiles
+            const associatedMediaFile = allScannedMediaFiles.find(
+                media => path.parse(media.filePath).name === mediaFileBaseName
+            );
+
+            memoList.push({
+                memoFileName: memoMdFile, // Full name like "myvideo.md"
+                mediaFileBaseName: mediaFileBaseName, // Base name like "myvideo"
+                mediaFilePath: associatedMediaFile ? associatedMediaFile.filePath : null,
+                fileType: associatedMediaFile ? associatedMediaFile.fileType : null,
+                thumbnailPath: associatedMediaFile ? associatedMediaFile.thumbnailPath : null,
+                lastModifiedDate: stats.mtime // JavaScript Date object for sorting
+            });
+        }
+        console.log(`[MEMO LIST] Found ${memoList.length} memos.`);
+        return memoList;
+    } catch (e) {
+        console.error('[MEMO LIST] Error reading memos directory:', e);
+        return [];
+    }
+}
+
 const APP_NAME = appPackage.productName || "My Media Browser";
 const HISTORY_LIMIT = 100; // Max number of history items to store
 let allScannedMediaFiles = []; // To store all scanned media files with their details
@@ -203,6 +377,7 @@ function createWindow () {
 }
 
 app.whenReady().then(() => {
+  ensureMemosDirExists(); // Ensure memos directory exists on startup
   createWindow();
 
   // Handle app-command for mouse back/forward buttons (primarily Windows)
@@ -297,6 +472,32 @@ async function loadAllMediaFromRegisteredFolders() {
 
     allScannedMediaFiles = processedFiles;
     console.log(`Updated allScannedMediaFiles with ${allScannedMediaFiles.length} items. On-demand thumbnail generation will be used if path is null.`);
+
+    // After allScannedMediaFiles is fully populated and processed...
+    console.log('Proactively queuing missing thumbnails for background generation...');
+    let proactiveQueueCount = 0;
+    allScannedMediaFiles.forEach(file => {
+        if (!file.thumbnailPath) { // If thumbnailPath is null or empty
+            // Avoid adding if already queued by renderer recently for the same file
+            const alreadyQueuedByRenderer = thumbnailQueue.some(task => task.filePath === file.filePath && task.isRendererRequest);
+
+            if (!alreadyQueuedByRenderer) {
+                thumbnailQueue.push({
+                    filePath: file.filePath,
+                    fileType: file.fileType,
+                    isRendererRequest: false, // This is a background task
+                    // No imgIdForRenderer or windowId needed for background tasks
+                });
+                proactiveQueueCount++;
+                console.log(`[PROACTIVE QUEUE] Background task added for ${file.filePath}. New queue size: ${thumbnailQueue.length}`);
+            }
+        }
+    });
+    if (proactiveQueueCount > 0) {
+        console.log(`Added ${proactiveQueueCount} items to thumbnail queue for background generation.`);
+        processThumbnailQueue(); // Trigger queue processing if not already active
+        console.log(`[PROACTIVE QUEUE] Called processThumbnailQueue after adding ${proactiveQueueCount} proactive items.`);
+    }
     return allScannedMediaFiles; // Return the list with thumbnailPath set to existing or null
 }
 
@@ -307,9 +508,10 @@ ipcMain.on('scan-directory', async (event, directoryPath) => {
     const currentFolders = getScannedFolders(); // Array of { path: string, recursive: boolean }
     // Check if path already exists
     if (!currentFolders.some(folder => folder.path === directoryPath)) {
-        currentFolders.push({ path: directoryPath, recursive: true }); // Default new folders to recursive
+        currentFolders.push({ path: directoryPath, recursive: false }); // Default new folders to non-recursive
         saveScannedFolders(currentFolders);
-        console.log(`Added new scan directory: ${directoryPath} (recursive by default).`);
+        console.log(`Added new scan directory: ${directoryPath} (recursive by default).`); // Log message might need update too
+        console.log(`Added new scan directory: ${directoryPath} (defaulting to non-recursive).`);
     } else {
         console.log(`Directory already in scan list: ${directoryPath}`);
     }
@@ -502,43 +704,67 @@ ipcMain.handle('toggle-recursive-scan', async (event, { folderPath, recursive })
     }
 });
 
-// IPC handler for on-demand thumbnail generation
-ipcMain.handle('get-thumbnail-for-file', async (event, { filePath, fileType, imgIdForRenderer }) => {
-    if (!filePath || !fileType || !imgIdForRenderer) {
-        console.error('Invalid parameters for get-thumbnail-for-file:', { filePath, fileType, imgIdForRenderer });
-        return { originalImgId: imgIdForRenderer, generatedThumbnailPath: null, error: 'Invalid parameters' };
+// New IPC handler for queuing thumbnail requests
+ipcMain.on('request-thumbnail', (event, { filePath, fileType, imgIdForRenderer }) => {
+    // Ensure we have a valid windowId to send the response back to.
+    // event.sender is the webContents that sent the message.
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!ownerWindow) {
+        console.warn(`Could not find owner window for request-thumbnail from sender ID: ${event.sender.id}. File: ${filePath}`);
+        return; // Cannot process if we can't identify the window to reply to
+    }
+    const windowId = ownerWindow.id;
+
+    // Add to queue with renderer request context
+    thumbnailQueue.push({
+        filePath,
+        fileType,
+        imgIdForRenderer,
+        windowId, // ID of the window that made the request
+        isRendererRequest: true 
+    });
+    console.log(`[IPC ON request-thumbnail] Task added for ${filePath}. New queue size: ${thumbnailQueue.length}`);
+    processThumbnailQueue(); // Trigger queue processing
+    console.log(`[IPC ON request-thumbnail] Called processThumbnailQueue for ${filePath}.`);
+});
+
+ipcMain.handle('get-memo', async (event, mediaFilePath) => {
+    if (!mediaFilePath) {
+        console.error('[IPC get-memo] Received request with no mediaFilePath.');
+        return ""; // Or throw an error / return specific error object
     }
     try {
-        console.log(`On-demand thumbnail request for: ${filePath} (imgId: ${imgIdForRenderer})`);
-        // generateThumbnail will check if thumbnail already exists.
-        // generateThumbnail now returns an object: { generatedThumbnailPath, error, details }
-        const thumbResult = await generateThumbnail(filePath, fileType);
+        return await readMemo(mediaFilePath);
+    } catch (e) {
+        console.error(`[IPC get-memo] Error reading memo for ${mediaFilePath}:`, e);
+        return ""; // Return empty string or an error indicator
+    }
+});
 
-        if (thumbResult.generatedThumbnailPath) {
-            // Update allScannedMediaFiles with the new thumbnail path if generation was successful
-            const fileIndex = allScannedMediaFiles.findIndex(file => file.filePath === filePath);
-            if (fileIndex !== -1) {
-                allScannedMediaFiles[fileIndex].thumbnailPath = thumbResult.generatedThumbnailPath;
-            }
-            return {
-                originalImgId: imgIdForRenderer,
-                generatedThumbnailPath: thumbResult.generatedThumbnailPath,
-                error: null,
-                errorDetails: null
-            };
-        } else {
-            // An error occurred during thumbnail generation
-            console.error(`Thumbnail generation failed for ${filePath}: ${thumbResult.error}`, thumbResult.details);
-            return {
-                originalImgId: imgIdForRenderer,
-                generatedThumbnailPath: null,
-                error: thumbResult.error, // e.g., 'video_corrupt_or_unreadable'
-                errorDetails: thumbResult.details
-            };
-        }
-    } catch (error) { // Catch errors if generateThumbnail itself throws (shouldn't with new design) or other issues
-        console.error(`Unexpected error in get-thumbnail-for-file for ${filePath}: ${error.message}`);
-        return { originalImgId: imgIdForRenderer, generatedThumbnailPath: null, error: 'ipc_handler_error', errorDetails: error.message };
+ipcMain.handle('save-memo', async (event, { mediaFilePath, content }) => {
+    if (!mediaFilePath) {
+        console.error('[IPC save-memo] Received request with no mediaFilePath.');
+        return { success: false, error: 'No mediaFilePath provided.' };
+    }
+    if (typeof content !== 'string') {
+        // Ensure content is a string, even if empty, to avoid write errors.
+        content = String(content || ""); 
+    }
+    try {
+        await saveMemo(mediaFilePath, content);
+        return { success: true };
+    } catch (e) {
+        console.error(`[IPC save-memo] Error saving memo for ${mediaFilePath}:`, e);
+        return { success: false, error: e.message || 'Failed to save memo.' };
+    }
+});
+
+ipcMain.handle('get-memos-list', async () => {
+    try {
+        return await getMemosList();
+    } catch (e) {
+        console.error('[IPC get-memos-list] Error calling getMemosList:', e);
+        return []; // Return empty list or an error structure
     }
 });
 
